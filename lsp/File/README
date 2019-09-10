@@ -1,0 +1,85 @@
+File operations Examples:
+---------------------------
+1. write1.c - A program that uses write system call with proper ERROR Handling.
+
+2. read1.c - A program that uses read system call with proper ERROR Handling.
+
+3. open1.c - A program that reads a "abc" file content and writes in to stadard output.
+
+	open1.c = $ cat abc
+	open1.c != $ cat 123
+
+4. copy_system.c  - A program that uses low-level system calls to copy one file to another.
+	$ TIMEFORMAT=”” time copy_system
+
+	11.32sec ; 99%cpu
+5. copy_block.c  -  An improved version of system.c that copies blocks of data between the files.
+
+	$ TIMEFORMAT=”” time copy_block
+	0.02sec ; 50%cpu
+
+6. copy_stdio.c  -  A program uses library calls to further improve the speed of the above programs by buffering
+the file input and output.
+	$ TIMEFORMAT=”” time copy_stdio
+	0.03 sec; 59% cpu
+
+7. lseek.c - A program that uses lseek system call.
+
+8. stat.c - A Program that shows file information. 
+	stat.c = ls -l
+
+Mini Project -  File Operations:
+-------------------------------
+Project 1 : mycat.c - A program that works same as cat command line application.
+
+1. implement command line arguments
+2. proper error handling  
+
+Project 2: mycp.c 
+
+Origional copy command behavior:
+-------------------------------
+case 1: with out any arguments
+------
+$ cp
+cp: missing file operand
+Try 'cp --help' for more information.
+
+case 2: one argument 
+------
+$ cp abc
+cp: missing destination file operand after ‘abc’
+Try 'cp --help' for more information.
+
+case 3: two arguments - both are regular files
+------
+3a: source file name 123 is exist in current directory.
+$ cat 123
+kernelmasters
+$ cp 123 abc
+$ cat abc
+kernelmasters
+
+3b: source file name 123 is not exist in current directory.
+$ cp 123 abc
+cp: cannot stat ‘123’: No such file or directory
+
+case 4: two arguments - source file is regular, destination is directory
+------
+$ cp abc test
+
+case 5: threee arguments - all arguemnts are regular files
+------
+$ cp abc 123 xyz
+cp: target ‘xyz’ is not a directory
+
+case 6: threee arguments - last argument is directory 
+------
+$ cp abc 123 test
+
+case 7: three arguemnts - last argument is home directory 
+------
+$ cp abc 123 ~/test
+
+
+

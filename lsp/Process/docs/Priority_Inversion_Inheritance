@@ -1,0 +1,25 @@
+
+Priority Inversion:
+-------------------
+
+A high priority task is blocked due to a low priority task
+
+As long as we have priority and mutual exclusion at the same time, we will have some form of priority inversion.
+
+Priority inversion is an undesirable situation in which a higher priority task gets blocked (waits for CPU) for more time than that it is supposed to, by lower priority tasks.
+
+
+Example:
+Let T1  , T2 , and T3 be the three periodic tasks with decreasing order of priorities. 
+Let T1 and T3 share a resource “S”. 
+
+
+
+
+
+Solution for Priority Inversion:
+--------------------------------
+Priority inheritance:
+--------------------
+Under the policy of priority inheritance, whenever a high priority task has to wait for some resource shared with an executing low priority task, the low priority task is temporarily assigned the priority of the highest waiting priority task for the duration of its own use of the shared resource, thus keeping medium priority tasks from pre-empting the (originally) low priority task, and thereby affecting the waiting high priority task as well. Once the resource is released, the low priority task continues at its original priority level
+

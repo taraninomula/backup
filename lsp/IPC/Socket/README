@@ -1,0 +1,31 @@
+Socket Programming:
+------------------
+
+shared physical memory, or message queues, but only processes running on a single machine can use them.
+You can use sockets in much the same way as pipes, but they include communication across a network of computers. 
+
+A process on one machine can use sockets to communicate with a process on another, which allows for client/server systems 
+that are distributed across a network.
+Sockets may also be used between processes on the same machine.
+
+
++client1.c - a simple local client program.
++server1.c - a simple local server program.
++client2.c - a simple network client program.
++server2.c - a simple network server program.
++client3.c - client2.c amended to translate between host and network byte ordering.
++server3.c - server2.c amended to translate between host and network byte ordering.
++getname.c - a program that gets netork information using gethostbyname.
++getdate.c - a program that connects to a standard network service using sockets.
++server4.c - a program that serves multiple clients by using fork.
++select.c  - a program that uses the function select to check for activity on a range of file descriptors.
++server5.c - a program that serves multiple clients using the function select instead of fork.
+
+
++serverudp.c & clientudp.c - udp server and client program.
+
+Mini Project:
+------------
+server6.c - a program that serves multiple clients using threads.
+server7.c & client7.c: simple command line Chat Application.
+

@@ -1,0 +1,93 @@
+Processes 
+---------
++getpid.c	- shows current pid & parents pid numbers.
+
+starting a new process: system() library.
++system1.c   -  A program that calls another program using the system command.
++system2.c   -  system1.c revised so that the other program is run in the background.
+
+Replacing a  process image: execve() systemcall.
++pexec.c    -  A program that replaces a process image using the execlp command.
+
+Duplicating a process image: fork() systemcall.
++fork1.c     -  A program that duplicates a process image using the fork command.
++fork2.c     -  A program parent terminate earlier than the children. Drawback: unexpected results.
++fork3.c     -  A program that uses the wait command to wait for a child process to finish.
++fork_zombiee.c     -  fork1.c changed so that a zombie process is created.
++fork_exec.c    - A Prgram create a ls process is not same as a parent.
+
+
+Lab Assignment:
+---------------
+WAP your own version of system library?
+
+signals
+-------
+list of signals:
+kill -l
+man 7 signals
+man 2 signal
+
++ctrlc1.c   -  A simple signal handling program which reacts to SIGINT.
++alarm.c    -  A program which sends a signal to itself.
+
+Lab Assignment:
+---------------
+WAP your own version of kill command?
+WAP your own version of nice command?
+
+
+
+
+Priority range in Linux:
+-----------------------
+
+The Linux kernel implements two separate priority ranges.
+
+The first is the nice value, a number from –20 to 19 with a default of zero. Larger nice values correspond to a lower priority (you are being nice to the other processes on the system). Processes with a lower nice value (higher priority) run before processes with a higher nice value (lower priority). The nice value also helps determine how long a processor timeslice the process receives. A process with a nice value of –20 receives the maximum timeslice, whereas a process with a nice value of 19 receives the minimum timeslice. Nice values are the standard priority range used in all Unix systems.
+
+The second range is the real-time priority (rtprio). By default, it ranges from zero to 99. All real-time processes are at a higher priority than normal processes. Linux implements real-time priorities in accordance with POSIX.
+
+In order to select a process to run, the Linux scheduler must consider the priority of each process. Actually, there are two kinds of priority:
+
+Static priority (Real Time Priority):
+--------------
+This kind is assigned by the users to real-time processes and ranges from 1 to 99 (highest). It is never changed by the scheduler. The sys_sched_get_priority_max( ) routine returns the static priority of the process, it returns 0 for non-realtime processes.
+
+Dynamic priority (scheduling priority):
+----------------
+This kind applies only to conventional processes (non realtime processes)
+
+Processes have an initial priority specified as the nice value. This value is stored in the static_prio member of the process’s task_struct. The value is called the static priority because it does not change from what the user specifies. The scheduler, in turn, bases its decisions on the dynamic priority that is stored in prio. The dynamic priority is calculated as a function of the static priority and the task’s interactivity
+
+The static priority of a real-time process is always higher than the dynamic priority of a conventional one: the scheduler will start running conventional processes only when there is no real-time process in a TASK_RUNNING state.
+
+This scale could probably illustrate priorities better
+
+HIGH PRIORITY – - – - – > – - – - – > – - – - – > – - – - – > – - – – LEAST PRIORITY
+……..real time priority (static priority)…….| …. nice value (dynamic priority) …..
+99 ……………………….. 50 ……………………… 1 | -20 …….. -10 …….. 0 …….. 10 ……. 19
+
+
+
+change process priorities (only Dynamic Priority):
+--------------------------------------------------
+nice vs renice:
+-------------
+
+Linux and UNIX® systems use a priority system with 40 priorities, ranging from -20 (highest priority) to 19 (lowest priority.
+Processes started by regular users usually have priority 0.
+The ps command can display the priority (nice, or NI, level, for example) using the -l option.
+The nice command displays our default priority.
+
+
+Setting priority on new processes (nice):
+----------------------------------------
+nice -n 10 <applicaiton name>
+
+Setting Priority on Existing Processes (renice):
+-----------------------------------------------
+renice 10 -p 21827
+
+
+

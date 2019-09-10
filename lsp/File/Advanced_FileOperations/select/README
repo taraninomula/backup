@@ -1,0 +1,21 @@
+input subsystem
+--------------
+
+evtest is Input device event monitor and query tool.
+$ sudo apt-get install evtest
+
+select() system call is select multiple file descriptors at a time.
+
+
+Examples:
+--------
++read1.c: show the "/dev/input/event0" name.
++read2.c: This example shows how to read data from Mouse.(Drawback: shows garbage value).
++read3.c: This example shows how to read proper data(timestamp,type of event,code,value) from mouse.  
++read4.c: This example shows how to read two input devices(keyboard and mouse) at a time.
+	   Drawback: read only one input device at a time.  
+ 
++select1.c : This example shows how to read two input devices at a time without blocking another input device.
++select2.c, select3.c : Another examples of select system calls.
++select4.c: This example shows properly read any two input device information at a time without blocking another input device.
+

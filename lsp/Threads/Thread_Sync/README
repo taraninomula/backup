@@ -1,0 +1,15 @@
+Producer Consumer Problem Examples:
+----------------------------------
+Example1: producerconsumer1.c (producer consumer problem using Pthreads only)
+----------------------------
+This is basic producer consumer example implement with pthreads with out synchronizaion mechanisums.
+Draback: Data inconsistency, Data Loss, Dead Lock.
+
+Example2: producerconsumer2.c (producer consumer problem using Pthreads and counting semaphores)
+----------------------------
+This example implement 2 counting semaphores one is empty and another one is full. This examples works fine if one producer and one consumer.
+Drawback: Doesn't works Multiple Producers.
+
+Example3: producerconsumer3.c (producer consumer problem using Pthreads, semaphores and Mutex)
+-----------------------------
+This example implement mutex for supporting multiple producers.

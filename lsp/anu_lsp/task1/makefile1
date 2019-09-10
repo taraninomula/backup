@@ -1,0 +1,5 @@
+all :task1
+task1:task1.c
+	gcc -D NUM=1 task1.c -o task1
+clean:
+	rm task1
