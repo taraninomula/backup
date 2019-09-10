@@ -1,0 +1,1 @@
+The CDM fires a message event: a request to acquire a key from a license server   
