@@ -1,0 +1,102 @@
+﻿			SONY Interview Question
+
+1. Tell me about something you have mention in resume.
+
+2. Diff between NFS & SD card booting.
+
+3. How to install package.
+ans : using apt :
+			sudo apt-get install package_name
+      using dpkg :
+	      	sudo dpkg -i package_name
+
+4. How to remove package.
+ans :  Using apt from command line
+
+	Just use the command
+	
+	sudo apt-get remove package_name
+
+	If you want to also remove user data and configuration files
+	
+	sudo apt-get purge package_name
+
+	Using --auto-remove parameter will also remove package dependencies.
+	Using dpkg from command line
+
+	Just use the command
+	
+	sudo dpkg -r package_name
+
+	To remove a package and its configuration files
+	
+	sudo dpkg -P package_name
+
+
+5. what is debain package & use of them.
+	Debian packages are standard Unix ar archives that include two tar archives. One archive holds the control information and another contains the installable data. dpkg provides the basic functionality for installing and manipulating Debian packages.
+				Or
+A Debian package is a collection of files that allow for applications or libraries to be distributed via the Debian package management system. ... The source package (.dsc) and binary packages (.deb) will be built for you by tools such as dpkg-buildpackage.
+				Debian supports over 3,950 free, downloadable applications. Although some widely-used applications such as Microsoft Word and Excel are not included, Corel's WordPerfect and similar desktop applications are available
+
+6. what happens when you boot your board (steps have to mention).
+Ans :
+      BIOS : bios execute mbr.
+	MBR	:mbr execute grub
+	GRUB	: grub execute kernel
+	KERNEL :kernel execute /sbin/init 
+	INIT	:init execute run level programs.
+	RUN LEVEL PROGRAM	: run level porgram execute from /etc.rc.d/rc*.d/
+
+
+7. what is basic booting steps.
+	Same as 6 question ans.
+
+8. waht are the basic testing step to test any package.
+Ans : 1. Run ./configure
+	2.If something is missing istall it.
+	3.Run make.
+	4.Run make check.
+	5.make check will check all the test cases.
+
+9. How you will cross compile the for target board(steps by step).
+Ans : 1.download kernel source code from kernel.org.
+	2.download the toolchan for target board.
+	3.configure kernel for bbb (default configure)
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- omap2plus_defconfig
+	4. Cross-compile :
+	make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- zImage dtbs
+Now we will get zimage in arch/arm/boot and am335x-boneblack.dtb in arch/arm/boot/dts
+ 	
+
+10. How to select which toolchain is required.
+
+The build machine, on which the toolchain is built
+The host machine, on which the toolchain is executed
+The target machine, for which the toolchain generates code
+From these three different machines, we distinguish four different types of toolchain building processes:
+
+A native toolchain, as can be found in normal Linux distributions, has usually been compiled on x86, runs on x86 and generates code for x86.
+A cross-compilation toolchain, which is the most interesting toolchain type for embedded development, is typically compiled on x86, runs on x86 and generates code for the target architecture (be it ARM, MIPS, PowerPC or any other architecture supported by the different toolchain components)
+A cross-native toolchain, is a toolchain that has been built on x86, but runs on your target architecture and generates code for your target architecture. It's typically needed when you want a native GCC on your target platform, without building it on your target platform.
+
+11. what the tool chain contains in it.
+In software, a toolchain is a set of programming tools
+ simple software development toolchain may consist of a compiler and linker (which transform the source code into an executable program), libraries (which provide interfaces to the operating system), and a debugger (which is used to test and debug created programs).
+
+   
+12. how to know which command came from which package.
+ans: 
+
+	You can also do it with one line:
+
+	dpkg -S $(which command)
+	
+	For example, I want to know what package contains ls:
+
+	dpkg -S $(which ls)
+
+	And here is the output:
+
+	coreutils: /bin/ls
+
