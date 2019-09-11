@@ -1,0 +1,5 @@
+ This one is multiple client and sing server programm. 
+ This is using thread concept.
+ when one server wants to send a perticular msg to a perticula client  then you  have to enter the client fd after entering text.
+ this is successfully working.
+
