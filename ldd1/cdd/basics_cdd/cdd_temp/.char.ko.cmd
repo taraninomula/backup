@@ -1,0 +1,1 @@
+cmd_/home/lagadanu/Downloads/ldd/cdd/basics_cdd/cdd_temp/char.ko := ld -r -m elf_x86_64 -T /usr/src/linux-headers-3.13.0-123-generic/scripts/module-common.lds --build-id  -o /home/lagadanu/Downloads/ldd/cdd/basics_cdd/cdd_temp/char.ko /home/lagadanu/Downloads/ldd/cdd/basics_cdd/cdd_temp/char.o /home/lagadanu/Downloads/ldd/cdd/basics_cdd/cdd_temp/char.mod.o

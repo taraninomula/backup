@@ -1,0 +1,35 @@
+Using I/O Memory (Memory Mapped I/O):
+------------------------------------
+
+The interesting part is that in Linux, none of these are directly accessible, but are to be mapped to virtual addresses and then accessed through them
+thus making the RAM and device accesses generic enough.
+
+Virtual address for Physical Address:
+------------------------------------
+__get_free_pages, free_pages, kmalloc, kfree, vmalloc, vfree
+
+
+Virtual address for Bus I/O Address:
+------------------------------------
+
+The corresponding APIs (prototyped in <asm/io.h>) for mapping and unmapping the device bus addresses to virtual addresses are:
+
+void *ioremap(unsigned long device_bus_address, unsigned long device_region_size);
+void iounmap(void *virt_addr);
+
+
+Once mapped to virtual addresses, it depends on the device datasheet as to which set of device registers and/or device memory to read from or write into, by adding their offsets to the virtual address returned by ioremap(). For that, the following are the APIs (also prototyped in <asm/io.h>):
+
+unsigned int ioread8(void *virt_addr);
+unsigned int ioread16(void *virt_addr);
+unsigned int ioread32(void *virt_addr);
+unsigned int iowrite8(u8 value, void *virt_addr);
+unsigned int iowrite16(u16 value, void *virt_addr);
+unsigned int iowrite32(u32 value, void *virt_addr);
+
+An Example of I/O Memory:
+------------------------
+lspci -v
+
+echo -n "0123456789" > /dev/vram
+od -t x1 -v /dev/vram | less

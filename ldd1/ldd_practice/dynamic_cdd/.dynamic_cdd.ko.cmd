@@ -1,0 +1,1 @@
+cmd_/home/lagadanu/ldd_practice/dynamic_cdd/dynamic_cdd.ko := ld -r -m elf_x86_64 -T /usr/src/linux-headers-3.13.0-123-generic/scripts/module-common.lds --build-id  -o /home/lagadanu/ldd_practice/dynamic_cdd/dynamic_cdd.ko /home/lagadanu/ldd_practice/dynamic_cdd/dynamic_cdd.o /home/lagadanu/ldd_practice/dynamic_cdd/dynamic_cdd.mod.o

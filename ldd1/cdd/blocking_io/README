@@ -1,0 +1,58 @@
+slepy.c,slepy_proc.c: This examples shows what is blocking I/O, how to control blocking I/O using proc file system.
+
+Blocking I/O:
+------------
+
+One problem that might arise with read is what to do when there's no data yet, but we're not at end-of-file.
+
+The default answer is "go to sleep waiting for data". This section shows how a process is put to sleep, how it is awakened, 
+and how an application can ask if there is data without just blindly issuing a read call and blocking.
+
+
+Going to Sleep and Awakening:
+---------------------------
+
+Whenever a process must wait for an event (such as the arrival of data or the termination of a process), it should go to sleep. 
+Sleeping causes the process to suspend execution, freeing the processor for other uses. 
+At some future time, when the event being waited for occurs, the process will be woken up and will continue with its job. 
+This section discusses the kernel machinery for putting a process to sleep and waking it up.
+
+
+Wait Queues are a kernel mechanism for allowing tasks to wait upon (sleep on) an
+event and be awoken when it occurs.
+
+There are several ways of handling sleeping and waking up in Linux, each suited to different needs. 
+All, however, work with the same basic data type, a wait queue (wait_queue_head_t). 
+A wait queue is exactly that - a linked list of processes that are waiting for an event.
+
+Wait queues are declared and initialized as follows:
+---------------------------------------------------
+wait_queue_head_t my_queue;  		## it is wait queue structure declaration with a stance
+init_waitqueue_head(&my_queue);		## static initalization of wait queue structure stance
+
+When a wait queue is declared statically (i.e., not as an automatic variable of a procedure
+or as part of a dynamically-allocatea data structure), it is also possible to initialize the
+queue at compile time:
+
+DECLARE_WAIT_QUEUE_HEAD(my_queue);	## dynamic initialization of wait queue stance
+
+When a process sleeps, it does so in expectation that some condition will become true in the future. Any process that sleeps must check to be sure that the condition it was waiting  for is really true when it wakes up again.
+
+The simplest way of sleeping in the Linux kernel is a macro called wait_event (with a few variants); 
+it combines handling the details of sleeping with a check on the condition a process is waiting for. The forms of wait_event are:
+
+///////////// kernel function to put process to sleep ///////////////////////
+
+wait_event(wait_queue_head_t queue, int condition) 		   ## uninterruptible sleep
+wait_event_interruptible(wait_queue_head_t queue, int condition)   ## interruptible sleep
+
+
+(The implementation of the above two macros is shown below.)
+wait_event_timeout(wait_queue_head_t queue, int condition, long timeout)
+wait_event_interruptible_timeout(wait_queue_head_t queue, int condition, long timeout)
+
+
+///////////// kernel function to awake process from sleep, this generally used in isr() //////////////
+
+wake_up(&my_queue);
+wake_up_interruptible(&my_queue);

@@ -1,0 +1,53 @@
+Using I/O Ports (x86-specific hardware interfacing):
+---------------------------------------------------
+Unlike most other architectures, x86 has an additional hardware accessing mechanism, through direct I/O mapping.
+It is a direct 16-bit addressing scheme, and doesn’t need mapping to a virtual address for access.
+These addresses are referred to as port addresses, or ports. Since this is an additional access mechanism,
+it has an additional set of x86 (assembly/machine code - IN, OUT) instructions.
+
+I/O Port Allocation:
+-------------------
+The kernel provides a registration interface that allows your driver to claim the ports it needs. The core
+function in that interface is request_region:
+
+#include <linux/ioport.h>
+struct resource *request_region(unsigned long first, unsigned long n,const char *name);
+
+This function tells the kernel that you would like to make use of n ports, starting with first.
+The name parameter should be the name of your device.
+The return valuei is non-NULL if the allocation succeeds. If you get NULL back from request_region, you
+will not be able to use the desired ports.
+
+
+void release_region(unsigned long start, unsigned long n);
+
+There is also a function that allows your driver to check to see whether a given set of I/O ports is available:
+
+int check_region(unsigned long first, unsigned long n);
+
+Here, the return value is a negative error code if the given ports are not available.
+
+
+
+Manipulating I/O Ports:
+----------------------
+There are the input instructions inb, inw, and inl for reading an 8-bit byte, a 16-bit word, and a 32-bit long word, respectively,
+from I/O mapped devices, through ports. The equivalent C functions/macros (available through the header <asm/io.h>) are as follows:
+
+u8 inb(unsigned long port);
+u16 inw(unsigned long port);
+u32 inl(unsigned long port);
+void outb(u8 value, unsigned long port);
+void outw(u16 value, unsigned long port);
+void outl(u32 value, unsigned long port);
+
+cat /proc/ioports
+
+
+
+I/O Port Example:
+----------------
+Parallel port
+Serial
+RTC
+

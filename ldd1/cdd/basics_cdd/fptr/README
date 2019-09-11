@@ -1,0 +1,60 @@
+C structure can be accessed in 2 ways in a C program. They are,
+--------------------------------------------
+1. Using normal structure variable
+2. Using pointer variable
+   Dot(.) operator is used to access the data using normal structure variable and arrow (->) is used to access the data using pointer variable.
+
+Structure's member through pointer can be used in two ways:
+-----------------------------------------------------------
+1. Referencing pointer to another address to access memory
+2. Using dynamic memory allocation
+
+
+Example 1: access structure's member through pointer.
+--------------------------------------------------
+#include <stdio.h>
+struct name{
+   int a;
+   float b;
+};
+int main(){
+    struct name *ptr,p;
+    ptr=&p;            /* Referencing pointer to memory address of p */
+    printf("Enter integer: ");
+    scanf("%d",&(*ptr).a);
+    printf("Enter number: ");
+    scanf("%f",&(*ptr).b);
+    printf("Displaying: ");
+    printf("%d%f",(*ptr).a,(*ptr).b);
+    return 0;
+}
+
+
+Example 2: structure's member through pointer using malloc() function.
+---------------------------------------------------------------------
+#include <stdio.h>
+#include<stdlib.h>
+struct name {
+   int a;
+   float b;
+   char c[30];
+};
+
+
+int main(){
+   struct name *ptr;
+   int i,n;
+   printf("Enter n: ");
+   scanf("%d",&n);
+   ptr=(struct name*)malloc(n*sizeof(struct name));
+/* Above statement allocates the memory for n structures with pointer ptr pointing to base address */
+   for(i=0;i<n;++i){
+       printf("Enter string, integer and floating number  respectively:\n");
+       scanf("%s%d%f",&(ptr+i)->c,&(ptr+i)->a,&(ptr+i)->b);
+   }
+   printf("Displaying Infromation:\n");
+   for(i=0;i<n;++i)
+       printf("%s\t%d\t%.2f\n",(ptr+i)->c,(ptr+i)->a,(ptr+i)->b);
+   return 0;
+}
+~                

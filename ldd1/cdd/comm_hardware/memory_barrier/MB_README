@@ -1,0 +1,60 @@
+Memory Barriers:
+----------------
+
+Despite the strong similarity between hardware registers and memory, a programmer accessing I/O registers must be careful to avoid being tricked by CPU (or com-piler) optimizations that can modify the expected I/O behavior.
+
+The main difference between I/O registers and RAM is that I/O operations have side effects, while memory operations have none: 
+the only effect of a memory write is storing a value to a location, and a memory read returns the last value written there.
+
+Because memory access speed is so critical to CPU performance, the no-side-effects case has been optimized in several ways: values are cached and read/write instructions are reordered.
+
+Driver must ensure that no caching is performed and no read or write reordering takes place when accessing registers.
+
+
+The solution to compiler optimization and hardware reordering is to place a memory barrier between operations that must be visible 
+to the hardware (or to another pro-cessor) in a particular order. Linux provides four macros to cover all possible order-ing needs:
+
+#include <linux/kernel.h>
+void barrier(void)
+This function tells the compiler to insert a memory barrier but has no effect on the hardware. Compiled code stores to 
+memory all values that are currently modified and resident in CPU registers, and rereads them later when they are
+needed. A call to barrier prevents compiler optimizations across the barrier but leaves the hardware free to do its own reordering.
+
+#include <asm/system.h>
+void rmb(void);
+void read_barrier_depends(void);
+void wmb(void);
+void mb(void);
+These functions insert hardware memory barriers in the compiled instruction flow; their actual instantiation is platform dependent. 
+An rmb (read memory barrier) guarantees that any reads appearing before the barrier are completed prior to the execution of any subsequent read. wmb guarantees ordering in write operations, and the mb instruction guarantees both. 
+
+
+void smp_rmb(void);
+void smp_read_barrier_depends(void);
+void smp_wmb(void);
+void smp_mb(void);
+These versions of the barrier macros insert hardware barriers only when the kernel is compiled for SMP systems; 
+otherwise, they all expand to a simple barrier call.
+
+
+A typical usage of memory barriers in a device driver may have this sort of form:
+
+writel(dev->registers.addr, io_destination_address);
+writel(dev->registers.size, io_size);
+writel(dev->registers.operation, DEV_READ);
+wmb( );
+writel(dev->registers.control, DEV_GO);
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+

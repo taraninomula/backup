@@ -1,0 +1,79 @@
+Semaphore:
+---------
+
+1.) Semaphores, at its core, a semaphore is a single integer value combined
+    with a pair of functions that are typically called 
+	a.) up() 
+	b.) down()
+2.) To use semaphores, the code must include asm/semaphore.h.
+
+3.) The semaphore implementation in the kernel is just a structure semaphore.
+
+	struct semaphore {
+		atomic_t count;
+		int sleepers;
+		wait_queue_head_t wait;
+	};
+
+
+4.) There are two ways of creating a semaphore. 
+
+	a.) The dynamic way uses the function
+		void sema_init(struct semaphore *sem, int val);
+
+	b.) Statically, semaphores may be created by the macro
+		static DECLARE_SEMAPHORE_GENERIC(name,count)
+
+		The count or val in both cases specifies the initialization 
+		value of the semaphore. Setting it to 1 created the semaphore as a binary
+		
+semaphore or a mutex (mutual exclusion semaphore).
+--------------------------------------------------
+1.) Semaphores may also be created in the mutex mode by the following functions
+	
+	a.) DECLARE_MUTEX(name);
+	b.) DECLARE_MUTEX_LOCKED(name);
+
+2.) They may be initialized at runtime by the following
+	
+	a.) init_MUTEX(struct semaphore *sem);
+	b.) void init_MUTEX_LOCKED(struct semaphore *sem)
+
+Semaphore functions
+-------------------
+1.) seamaphores are accessed by calling,
+	
+	void down(struct semaphore *sem);
+
+2.) Once access to the critical section is completed, the semaphore 
+    may be released by the function
+	
+	void up(struct semaphore *sem)
+
+
+
+
+Implementation:
+--------------
+
+#include <linux/semaphore.h>
+
+struct semaphore MySem;
+
+sema_init (&MySem,1);
+
+
+down(&MySem);
+MySem.count
+
+up (&MySem);
+
+
+The below Examples shows how to use concurency in kernel space.
+
+LDD_CDD_03_01: This example shows how to use semaphore in kernel space.
+
+LDD_CDD_03_02: This example shows how to overcome data inconsistency in calculator driver using semaphore.
+
+
+

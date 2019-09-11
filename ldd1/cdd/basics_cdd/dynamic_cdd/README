@@ -1,0 +1,62 @@
+/**
+ *#include<linux/fs.h>
+ *
+ * register_chrdev_region() - register a range of device numbers
+ * @from: the first in the desired range of device numbers; must include
+ *        the major number.
+ * @count: the number of consecutive device numbers required
+ * @name: the name of the device or driver.
+ *
+ * Return value is zero on success, a negative error code on failure.
+ */
+------------------------------------------------------------------------
+
+/**
+ * #include<linux/fs.h>
+ *
+ * alloc_chrdev_region() - register a range of char device numbers
+ * @dev: output parameter for first assigned number
+ * @baseminor: first of the requested range of minor numbers
+ * @count: the number of minor numbers required
+ * @name: the name of the associated device or driver
+ *
+ * Allocates a range of char device numbers.  The major number will be
+ * chosen dynamically, and returned (along with the first minor number)
+ * in @dev.  Returns zero or a negative error code.
+ */
+--------------------------------------------------------------------------
+
+/**
+ * #include<linux/cdev.h>
+ *
+ * cdev_alloc() - allocate a cdev structure
+ *
+ * allocates and returns a cdev structure, or NULL on failure
+ */
+---------------------------------------------------------------------------
+
+/**
+ * #include<linux/cdev.h>
+ *
+ * cdev_add() - add a char device to the system
+ * @p: the cdev structure for the device
+ * @dev: the first device number for which this device is responsible
+ * @count: the number of consecutive minor numbers corresponding to this
+ *         device
+ *
+ * cdev_add() adds the device represented by @p to the system, making it
+ * live immediately.  A negative error code is returned on failure.
+ */
+----------------------------------------------------------------------------
+
+/**
+ * #include<linux/cdev.h>
+ *
+ * cdev_del() - remove a cdev from the system
+ * @p: the cdev structure to be removed
+ *
+ * cdev_del() removes @p from the system, possibly freeing the structure
+ * itself.
+ */
+
+-----------------------------------------------------------------------------

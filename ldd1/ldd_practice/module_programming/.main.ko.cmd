@@ -1,0 +1,1 @@
+cmd_/home/lagadanu/ldd_practice/module_programming/main.ko := ld -r -m elf_x86_64 -T /usr/src/linux-headers-3.13.0-123-generic/scripts/module-common.lds --build-id  -o /home/lagadanu/ldd_practice/module_programming/main.ko /home/lagadanu/ldd_practice/module_programming/main.o /home/lagadanu/ldd_practice/module_programming/main.mod.o

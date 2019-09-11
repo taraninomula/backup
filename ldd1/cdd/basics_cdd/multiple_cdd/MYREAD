@@ -1,0 +1,1 @@
+here semaphore is requied becoz all the read functions are using copy_to_user(), which internally use Kbuff (which is kind of same for all in the perticular module). so we need synchronization mechanism.

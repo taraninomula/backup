@@ -1,0 +1,43 @@
+Advanced Character Drivers:
+--------------------------
+
+IOCTL:
+
+Most drivers need in addition to the ability to read and write the device the ability to perform various types of hardware control via the device driver. 
+
+These operations are normally supported via the ioctl method.
+
+In the user space, the ioctl command has the following format
+int ioctl(int fd, unsigned long cmd, ...);
+
+The ioctl driver method has the prototype
+int (*ioctl) (struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg);
+
+
+Magic Numbers:
+Magic numbers are mechanisms of identifying the commands for a particular device. They must be unique over the system.
+These are maintained by the kernel in 4 bit-fields.
+
+1. type: This is the magic number present in the file ioctl-number.txt. It is 8 bits wide
+2. number: The ordinal (sequential) number. It is also 8 bits wide
+3. direction: The direction of data transfer. Two bits
+4. size: The size of the user data involved. The size is architecture dependent, and is generally limited to 13 or 14 bits
+
+
+To choose ioctl numbers for your driver according to the Linux kernel convention, you should first check include/asm/ioctl.h
+and Documentation/ioctl/ioctl-number.txt.
+
+
+The ioctl-number.txt file lists the magic numbers used throughout the kernel,* so you’ll be able to choose your own magic number and avoid overlaps
+
+The standard talks about the 32-bit command numbers, formed of four components embedded into the [31:0] bits:
+
+The direction of command operation [bits 31:30] -- read, write, both, or none -- filled by the corresponding macro (_IOR, _IOW, _IOWR, _IO).
+
+The size of the command argument [bits 29:16] -- computed using sizeof() with the command argument's type -- the third argument to these macros.
+
+The 8-bit magic number [bits 15:8] -- to render the commands unique enough -- typically an ASCII character (the first argument to these macros).
+
+The original command number [bits 7:0] -- the actual command number (1, 2, 3, ...), defined as per our requirement -- the second argument to these macros.
+
+

@@ -1,0 +1,113 @@
+Kernel Timers:
+-------------
+
+Timers sometimes called dynamic timers or kernel timers are essential for managing the flow of time in kernel code. 
+Kernel code often needs to delay execution of some function until a later time. 
+
+Bottom­half Mechanisms, which are great for deferring work until later. Unfortunately, the definition of later is intentionally quite vague. 
+The purpose of bottom halves is not so much to delay work, but simply to not do the work now. What we need is a tool for delaying work a 
+specified amount of time certainly no less, and with hope, not much longer. The solution is kernel timers.
+
+
+Timers are not cyclic. The timer is destroyed after it expires.
+Timers are constantly created and destroyed, and there is no limit on the number of timers. 
+Timers are very popular throughout the entire kernel.
+
+
+Jiffies:
+-------
+The kernel keeps tack of it simply because the kernel controls the timer interrupt.
+The kernel define the value in <asm/param.h>. For example x86 processor has 100HZ. (Such as 100 ticks (times) per second.)
+The 2.6.21 kernel introduced support for a tickless kernel (CONFIG_NO_HZ), which dynamically triggers timer interrupts depending on system load.
+
+Long Delays:
+-----------
+Occasionally, a driver needs to delay execution for relatively long periods more than one clock tick.
+
+1. Brain-dead (Busy-wait) approach:
+----------------------
+The following code hogs the processor for 1 second:
+ 
+	unsigned long timeout = jiffies + n * HZ;
+	while (time_before(jiffies, timeout)) 
+	continue;
+
+The time_before() function returns true as long as parameter 1 is less than parameter 2 (in  terms of time); 
+once parameter 1 is >= parameter 2 it returns false.
+
+2. Sleep-wait Approach:
+----------------------
+A better approach is to sleep-wait, instead of busy-wait. Your code yields the processor to others, while waiting
+for the time delay to elapse. This is done using schedule_timeout():
+
+	unsigned long timeout = jiffies + HZ;
+	while (time_before(jiffies, timeout)) 
+	schedule();
+
+
+schedule_timeout(timeout); /* Allow other parts of the kernel to run */
+wait_event_timeout() is used when your code desires to resume execution if a specified condition becomes true or if a timeout occurs. 
+msleep() sleeps for the specified number of milliseconds.
+
+Such long-delay techniques are suitable for use only from process context. 
+Sleep-waiting cannot be done from interrupt context because interrupt handlers are not allowed to schedule() or sleep. 
+Busy-waiting for a short duration is possible from interrupt context, but long busy-waiting in that context is considered a mortal sin.
+
+The kernel also provides timer APIs to execute a function at a point of time in the future. You can dynamically
+define a timer using init_timer() or statically create one with DEFINE_TIMER(). After this is done, populate a
+timer_list with the address and parameters of your handler function, and register it using add_timer():
+
+Short Delays:
+------------
+In kernel terms, sub-jiffy delays qualify as short durations. Such delays are commonly requested from both process and interrupt contexts. 
+Because it is not possible to use jiffy-based methods to implement sub-jiffy delays, the methods discussed in the previous section to 
+sleep-wait cannot be used for small timeouts. The only solution is to busy-wait.
+
+Kernel APIs that implement short delays are mdelay(), udelay(), and ndelay(), which support millisecond,
+microsecond, and nanosecond delays, respectively. The actual implementations of these functions are architecture-specific and may not be 
+available on all platforms.
+
+Using Timers:
+------------
+
+A timer is very easy to use. You perform some initial setup, specify an expiration time, 
+specify a function to execute upon said expiration, and activate the timer. The given 
+function will run after the timer expires. 
+
+Timers are represented by struct timer_list, which is defined in <linux/timer.h>: 
+struct timer_list { 
+ struct list_head entry;  /* entry in linked list of timers */ 
+ unsigned long expires;   /* expiration value, in jiffies */ 
+ spinlock_t lock;         /* lock protecting this timer */ 
+ void (*function)(unsigned long);/* the timer handler function */ 
+ unsigned long data;      /* lone argument to the handler */ 
+ struct tvec_t_base_s *base;  /* internal timer field, do not 
+touch */ 
+}; 
+
+Kernel maintains global variable called jiffies, which is incremented during every system tick interrupt.
+
+
+init_timer(&my_timer); 
+ 
+my_timer.expires = jiffies + delay;    /* timer expires in delay ticks */ 
+my_timer.data = 0;/* zero is passed to the timer handler */ 
+my_timer.function = my_function;       /* function to run when timer expires */ 
+
+
+schedule_timeout()
+-----------------
+
+A more optimal method of delaying execution is to use schedule_timeout(). This call puts your task to sleep until 
+at least the specified time has elapsed. There is no guarantee that the sleep duration will be exactly the specified time ­
+only that the duration is at least as long as specified. When the specified time has elapsed, the kernel wakes the task up and 
+places it back on the runqueue. Usage is easy: 
+/* set task's state to interruptible sleep */ 
+set_current_state(TASK_INTERRUPTIBLE); 
+/* take a nap and wake up in "s" seconds */ 
+schedule_timeout(s * HZ); 
+
+
+
+
+
