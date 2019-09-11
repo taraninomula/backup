@@ -1,0 +1,1166 @@
+diff --git a/AndroidBoot.mk b/AndroidBoot.mk
+index 089c4d8..4fa6eaa 100644
+--- a/AndroidBoot.mk
++++ b/AndroidBoot.mk
+@@ -57,8 +57,9 @@ $(TARGET_NAND_BOOTLOADER): appsbootldr_clean | $(NAND_BOOTLOADER_OUT)
+ 	$(MAKE) -C bootable/bootloader/lk TOOLCHAIN_PREFIX=$(CROSS_COMPILE) BOOTLOADER_OUT=../../../$(NAND_BOOTLOADER_OUT) $(BOOTLOADER_PLATFORM) $(SIGNED_KERNEL)
+ 
+ # Top level for eMMC variant targets
+-$(TARGET_EMMC_BOOTLOADER): emmc_appsbootldr_clean | $(EMMC_BOOTLOADER_OUT)
+-	$(MAKE) -C bootable/bootloader/lk TOOLCHAIN_PREFIX=$(CROSS_COMPILE) BOOTLOADER_OUT=../../../$(EMMC_BOOTLOADER_OUT) $(BOOTLOADER_PLATFORM) EMMC_BOOT=1 $(SIGNED_KERNEL)
++$(TARGET_EMMC_BOOTLOADER): emmc_appsbootldr_clean | $(EMMC_BOOTLOADER_OUT) $(INSTALLED_KEYSTOREIMAGE_TARGET)
++	$(MAKE) -C bootable/bootloader/lk TOOLCHAIN_PREFIX=$(CROSS_COMPILE) BOOTLOADER_OUT=../../../$(EMMC_BOOTLOADER_OUT) $(BOOTLOADER_PLATFORM) EMMC_BOOT=1 $(SIGNED_KERNEL) $(VERIFIED_BOOT) $(DEVICE_STATUS) $(BUILD_VARIANT)
++	cp bootable/bootloader/lk/splash/splash.img $(PRODUCT_OUT)
+ 
+ # Keep build NAND & eMMC as default for targets still using TARGET_BOOTLOADER
+ TARGET_BOOTLOADER := $(PRODUCT_OUT)/EMMCBOOT.MBN
+@@ -80,3 +81,8 @@ $(NANDWRITE_OUT):
+ $(TARGET_NANDWRITE): nandwrite_clean | $(NANDWRITE_OUT)
+ 	@echo $(BOOTLOADER_PLATFORM)_nandwrite
+ 	$(MAKE) -C bootable/bootloader/lk TOOLCHAIN_PREFIX=$(CROSS_COMPILE) BOOTLOADER_OUT=../../../$(NANDWRITE_OUT) $(BOOTLOADER_PLATFORM)_nandwrite BUILD_NANDWRITE=1
++ifneq ($(TARGET_BUILD_VARIANT),user)
++  ifeq ($(CUST_NAME),CKT)
++    DEVICE_STATUS += CKT_UNLOCK=true
++  endif
++endif
+diff --git a/app/aboot/aboot.c b/app/aboot/aboot.c
+index 6bcdd33..9d17e78 100644
+--- a/app/aboot/aboot.c
++++ b/app/aboot/aboot.c
+@@ -80,6 +80,11 @@ extern int get_target_boot_params(const char *cmdline, const char *part,
+ void write_device_info_mmc(device_info *dev);
+ void write_device_info_flash(device_info *dev);
+ static int aboot_save_boot_hash_mmc(uint32_t image_addr, uint32_t image_size);
++extern void display_fbcon_message(char *str);
++static int aboot_frp_unlock(char *pname, void *data, unsigned sz);
++static inline uint64_t validate_partition_size();
++int ffbm_mode;
++static const char *ffbm_in = "ffbm-01";
+ /* fastboot command function pointer */
+ typedef void (*fastboot_cmd_fn) (const char *, void *, unsigned);
+ 
+@@ -860,6 +865,10 @@ int boot_linux_from_mmc(void)
+ 			boot_into_ffbm = true;
+ 	} else
+ 		boot_into_ffbm = false;
++	if (ffbm_mode){                                                                                    
++			strlcpy(ffbm_mode_string, ffbm_in, 8);
++			boot_into_ffbm = true;
++		}
+ 	uhdr = (struct boot_img_hdr *)EMMC_BOOT_IMG_HEADER_ADDR;
+ 	if (!memcmp(uhdr->magic, BOOT_MAGIC, BOOT_MAGIC_SIZE)) {
+ 		dprintf(INFO, "Unified boot method!\n");
+@@ -1536,7 +1545,8 @@ void read_device_info_mmc(device_info *dev)
+ 		info->charger_screen_enabled = 0;
+ 
+ 		write_device_info_mmc(info);
+-	}
++	}	
++	info->charger_screen_enabled = 1; /*ckt longqing.zhou add for power off charging 2015-9-29*/
+ 	memcpy(dev, info, sizeof(device_info));
+ }
+ 
+@@ -1703,6 +1713,19 @@ int copy_dtb(uint8_t *boot_image_start)
+ }
+ #endif
+ 
++#if CKT_UNLOCK
++void cmd_oem_ckt_unlock(const char *arg, void *data, unsigned sz)
++{
++	device.is_unlocked = 1;
++	{	
++		char response[128];
++		snprintf(response, sizeof(response), "device is unlocked. %d\n", device.is_unlocked);
++		fastboot_info(response);
++	}
++	fastboot_okay("");
++}
++#endif
++
+ void cmd_boot(const char *arg, void *data, unsigned sz)
+ {
+ 	unsigned kernel_actual;
+@@ -2803,7 +2826,7 @@ void aboot_init(const struct app_descriptor *app)
+ 			boot_into_recovery = 1;
+ 		if (!boot_into_recovery &&
+ 			(keys_get_state(KEY_BACK) || keys_get_state(KEY_VOLUMEDOWN)))
+-			boot_into_fastboot = true;
++			ffbm_mode  = true;
+ 	}
+ 	#if NO_KEYPAD_DRIVER
+ 	if (fastboot_trigger())
+diff --git a/app/tests/spi_test.c b/app/tests/spi_test.c
+index 98e6219..cc9fe88 100755
+--- a/app/tests/spi_test.c
++++ b/app/tests/spi_test.c
+@@ -60,7 +60,8 @@ void spi_test()
+ 		return;
+ 	}
+ 
+-	spi_qup_transfer(spi_dev, tx_buf1, data_size);
++	//spi_qup_transfer(spi_dev, tx_buf1, data_size);
++	spi_qup_transfer(spi_dev, tx_buf1);
+ 
+ 	free(tx_buf1);
+ 	dprintf(SPEW, "-----end %s----\n", __func__);
+diff --git a/dev/gcdb/display/gcdb_display.c b/dev/gcdb/display/gcdb_display.c
+index 08810b5..9df4c49 100644
+--- a/dev/gcdb/display/gcdb_display.c
++++ b/dev/gcdb/display/gcdb_display.c
+@@ -45,6 +45,11 @@
+ #include "target/display.h"
+ #include "gcdb_autopll.h"
+ 
++#if 0
++#define ROTATE_LEFT(x, s, n) ((x) << (n)) | ((x) >> ((s) - (n)))
++#define SHIFT_RIGHT(x, n) ((x) >> (n))
++extern int lcd_flags;
++#endif
+ /*---------------------------------------------------------------------------*/
+ /* static                                                                    */
+ /*---------------------------------------------------------------------------*/
+@@ -425,6 +430,9 @@ int gcdb_display_init(const char *panel_name, uint32_t rev, void *base)
+ {
+ 	int ret = NO_ERROR;
+ 	int pan_type;
++    int bl_enable = 0;
++    unsigned char rx_buf[4] = {0};
++    uint32_t id;
+ 
+ 	pan_type = oem_panel_select(panel_name, &panelstruct, &(panel.panel_info),
+ 				 &dsi_video_mode_phy_db);
+@@ -478,6 +486,27 @@ int gcdb_display_init(const char *panel_name, uint32_t rev, void *base)
+ 	panel.mdp_rev = rev;
+ 
+ 	ret = msm_display_init(&panel);
++#if 0
++    /* support to read panel IC driver version. */
++    ret = spi_read_id(rx_buf);
++    if (ret) {
++		dprintf(CRITICAL, "Read target failed!\n");
++        goto error_gcdb_display_init;
++    }
++    id = (rx_buf[0] << 24 | rx_buf[1] << 16 | rx_buf[2] << 8 | rx_buf[3]);
++    id = ROTATE_LEFT(id, 32, 1);
++    id = SHIFT_RIGHT(id, 8);
++    if (((id == 0x9305) && (lcd_flags == 0)) ||
++        ((id == 0x8552) && (lcd_flags == 1))) {
++        bl_enable = 1;
++        ret = 0;
++    } else
++        ret = 1;
++
++    if (bl_enable)
++        panel.bl_func(1);
++    /*end */
++#endif
+ 
+ error_gcdb_display_init:
+ 	display_enable = ret ? 0 : 1;
+diff --git a/dev/gcdb/display/include/panel_gc9305_qvga_spi_cmd.h b/dev/gcdb/display/include/panel_gc9305_qvga_spi_cmd.h
+index 03018ce..00cd61f 100644
+--- a/dev/gcdb/display/include/panel_gc9305_qvga_spi_cmd.h
++++ b/dev/gcdb/display/include/panel_gc9305_qvga_spi_cmd.h
+@@ -257,7 +257,7 @@ static struct mipi_dsi_cmd gc9305_qvga_cmd_off_command[] = {
+ /* Panel reset sequence                                                      */
+ /*---------------------------------------------------------------------------*/
+ static struct panel_reset_sequence gc9305_qvga_cmd_reset_seq = {
+-	{1, 0, 1, }, {20, 2, 20, }, 2
++	{1, 0, 1, }, {120, 100, 120, }, 2
+ };
+ 
+ /*---------------------------------------------------------------------------*/
+diff --git a/kernel/main.c b/kernel/main.c
+index 95a4339..99ddd4e 100644
+--- a/kernel/main.c
++++ b/kernel/main.c
+@@ -40,6 +40,8 @@ extern void *__ctor_end;
+ extern int __bss_start;
+ extern int _end;
+ 
++extern int ffbm_mode;
++
+ static int bootstrap2(void *arg);
+ 
+ #if (ENABLE_NANDWRITE)
+@@ -74,12 +76,21 @@ void kmain(void)
+ 	// do any super early platform initialization
+ 	platform_early_init();
+ 
++	// check ffbm_mode for factory
++	ffbm_mode = gpio_go_into_ffbm();
++
+ 	// do any super early target initialization
+ 	target_early_init();
+ 
+ 	dprintf(INFO, "welcome to lk\n\n");
+ 	bs_set_timestamp(BS_BL_START);
+ 
++	if (ffbm_mode) {
++		dprintf(INFO, "In ffbm_mode\n");
++	} else {
++		dprintf(INFO, "not ffbm_mode\n");
++	}
++
+ 	// deal with any static constructors
+ 	dprintf(SPEW, "calling constructors\n");
+ 	call_constructors();
+diff --git a/platform/msm8909/acpuclock.c b/platform/msm8909/acpuclock.c
+index f0b264d..ffe90cf 100755
+--- a/platform/msm8909/acpuclock.c
++++ b/platform/msm8909/acpuclock.c
+@@ -433,7 +433,7 @@ void clock_config_blsp_i2c(uint8_t blsp_id, uint8_t qup_id)
+ 	}
+ }
+ 
+-/* Configure spi clock */
++/* Configure spi clock
+ void clock_config_blsp_spi(uint8_t blsp_id, uint8_t qup_id)
+ {
+ 	uint8_t ret = 0;
+@@ -458,11 +458,43 @@ void clock_config_blsp_spi(uint8_t blsp_id, uint8_t qup_id)
+ 
+ 	snprintf(clk_name, sizeof(clk_name), "gcc_blsp1_qup%u_spi_apps_clk", qup_id);
+ 
+-	/* Set the highest clk frequency by default for good performance. */
++	// Set the highest clk frequency by default for good performance. 
+ 	ret = clk_get_set_enable(clk_name, 50000000, 1);
+ 
+ 	if (ret) {
+ 		dprintf(CRITICAL, "%s: Failed to enable %s\n", __func__, clk_name);
+ 		return;
+ 	}
++} */
++
++void clock_config_blsp_spi(uint8_t blsp_id, uint8_t qup_id, unsigned long rate)
++{
++	uint8_t ret = 0;
++	char clk_name[64];
++
++	struct clk *qup_clk;
++	qup_id = qup_id + 1;
++
++	if((blsp_id != BLSP_ID_1)) {
++		dprintf(CRITICAL, "Incorrect BLSP-%d configuration\n", blsp_id);
++		ASSERT(0);
++	}
++
++	snprintf(clk_name, sizeof(clk_name), "blsp1_ahb_iface_clk");
++
++	ret = clk_get_set_enable(clk_name, 0 , 1);
++
++	if (ret) {
++		dprintf(CRITICAL, "%s: Failed to enable %s clock\n", __func__, clk_name);
++		return;
++	}
++
++	snprintf(clk_name, sizeof(clk_name), "gcc_blsp1_qup%u_spi_apps_clk", qup_id);
++
++	ret = clk_get_set_enable(clk_name, rate, 1);
++
++	if (ret) {
++		dprintf(CRITICAL, "%s: Failed to enable %s\n", __func__, clk_name);
++		return;
++	}
+ }
+diff --git a/platform/msm8909/gpio.c b/platform/msm8909/gpio.c
+index 76f5010..fdf19bb 100755
+--- a/platform/msm8909/gpio.c
++++ b/platform/msm8909/gpio.c
+@@ -159,6 +159,23 @@ void gpio_config_blsp_spi(uint8_t blsp_id, uint8_t qup_id)
+ 			case QUP_ID_3:
+ 
+ 			case QUP_ID_5:
++				/* configure SPI MOSI gpio */
++				gpio_tlmm_config(8, 1, GPIO_OUTPUT, GPIO_NO_PULL,
++					GPIO_16MA, GPIO_DISABLE);
++
++					/* configure SPI MISO gpio */
++				gpio_tlmm_config(9, 1, GPIO_OUTPUT, GPIO_NO_PULL,
++					GPIO_16MA, GPIO_DISABLE);
++
++				/* configure SPI CS_N gpio */
++				gpio_tlmm_config(10, 1, GPIO_OUTPUT, GPIO_NO_PULL,
++					GPIO_16MA, GPIO_DISABLE);
++
++				/* configure SPI CLK gpio */
++				gpio_tlmm_config(11, 1, GPIO_OUTPUT, GPIO_NO_PULL,
++					GPIO_16MA, GPIO_DISABLE);
++                break;
++
+ 			default:
+ 				dprintf(CRITICAL, "Incorrect QUP id %d\n",qup_id);
+ 				ASSERT(0);
+@@ -168,3 +185,10 @@ void gpio_config_blsp_spi(uint8_t blsp_id, uint8_t qup_id)
+ 		ASSERT(0);
+ 	}
+ }
++
++uint32_t gpio_go_into_ffbm(void)
++{
++    gpio_tlmm_config(5, 0, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA, GPIO_ENABLE);
++    udelay(5000);
++    return !gpio_status(5);
++}
+\ No newline at end of file
+diff --git a/platform/msm8909/include/platform/clock.h b/platform/msm8909/include/platform/clock.h
+index 61d53ba..547b21e 100755
+--- a/platform/msm8909/include/platform/clock.h
++++ b/platform/msm8909/include/platform/clock.h
+@@ -75,5 +75,6 @@ void clock_config_ce(uint8_t instance);
+ void mdp_clock_init(void);
+ void mdp_gdsc_ctrl(uint8_t enable);
+ void clock_config_blsp_i2c(uint8_t blsp_id, uint8_t qup_id);
+-void clock_config_blsp_spi(uint8_t blsp_id, uint8_t qup_id);
++//void clock_config_blsp_spi(uint8_t blsp_id, uint8_t qup_id);
++void clock_config_blsp_spi(uint8_t blsp_id, uint8_t qup_id, unsigned long rate);
+ #endif
+diff --git a/platform/msm8909/include/platform/gpio.h b/platform/msm8909/include/platform/gpio.h
+index babc2e5..34837a2 100755
+--- a/platform/msm8909/include/platform/gpio.h
++++ b/platform/msm8909/include/platform/gpio.h
+@@ -62,4 +62,5 @@
+ 
+ void gpio_config_uart_dm(uint8_t id);
+ void gpio_config_blsp_spi(uint8_t blsp_id, uint8_t qup_id);
++uint32_t gpio_go_into_ffbm(void);
+ #endif
+diff --git a/platform/msm_shared/display.c b/platform/msm_shared/display.c
+index eeeb1a1..2313a2f 100644
+--- a/platform/msm_shared/display.c
++++ b/platform/msm_shared/display.c
+@@ -65,6 +65,7 @@ int msm_display_config()
+ {
+ 	int ret = NO_ERROR;
+ 	int mdp_rev;
++    int try_num = 0;
+ 	struct msm_panel_info *pinfo;
+ 
+ 	if (!panel)
+@@ -125,6 +126,24 @@ int msm_display_config()
+ 		break;
+ 	case SPI_PANEL:
+ 		dprintf(INFO, "Config SPI PANEL.\n");
++		ret = mdss_spi_init();
++		if (ret)
++			goto msm_display_config_out;
++		if (target_panel_auto_detect_enabled()) {
++            do {
++                try_num++;
++                ret = spi_check_panel_id(pinfo);
++                if (ret) {
++                    if (try_num == 4) {
++                        goto msm_display_config_out;
++                    }
++                    continue;
++                } else {
++                    dprintf(INFO, "Read SPI PANEL driver id success.\n");
++                    break;
++                }
++            } while (try_num < 4);
++		}
+ 		ret = mdss_spi_panel_init(pinfo);
+ 		if (ret)
+ 			goto msm_display_config_out;
+diff --git a/platform/msm_shared/include/msm_panel.h b/platform/msm_shared/include/msm_panel.h
+index b1e7823..94a5d43 100644
+--- a/platform/msm_shared/include/msm_panel.h
++++ b/platform/msm_shared/include/msm_panel.h
+@@ -96,6 +96,10 @@ struct mdss_spi_cmd {
+ struct spi_panel_info {
+ 	int num_of_panel_cmds;
+ 	struct mdss_spi_cmd *panel_cmds;
++	uint8_t *signature_addr;
++	uint8_t *signature;
++	uint8_t signature_len;
++
+ };
+ 
+ struct hdmi_panel_info {
+diff --git a/platform/msm_shared/include/qup.h b/platform/msm_shared/include/qup.h
+index 8bb6d28..d90737a 100755
+--- a/platform/msm_shared/include/qup.h
++++ b/platform/msm_shared/include/qup.h
+@@ -31,6 +31,9 @@
+ 
+ #include <stdint.h>
+ 
++#define MAX_READ_SPEED_HZ 4800000 //7789 4.8M 9305 9.6M
++#define MAX_SPEED_HZ 50000000
++
+ /* QUP_IO_MODES fields */
+ #define QUP_IO_MODES_OUTPUT_BIT_SHIFT_EN  0x00010000
+ #define QUP_IO_MODES_PACK_EN              0x00008000
+@@ -88,6 +91,7 @@
+  * size N to the mini-core per RUN state.
+  * And make the count be multiple of max bytes per word.
+  */
++#define MAX_QUP_MX_TRANSFER_COUNT 0xFFF8
+ #define MAX_QUP_MX_OUTPUT_COUNT 0xFFF8
+ 
+ /* QUP Registers */
+@@ -104,6 +108,7 @@ enum {
+ 	QUP_HW_VERSION = 0x30,
+ 	QUP_MX_READ_CNT = 0x208,
+ 	QUP_MX_INPUT_CNT = 0x200,
++	QUP_MX_INPUT_CNT_CURRENT = 0x204,
+ 	QUP_MX_OUTPUT_CNT = 0x100,
+ 	QUP_MX_OUTPUT_CNT_CURRENT = 0x104,
+ 	QUP_OUTPUT_DEBUG = 0x108,
+diff --git a/platform/msm_shared/include/spi_qup.h b/platform/msm_shared/include/spi_qup.h
+index 0febf49..10fecdf 100755
+--- a/platform/msm_shared/include/spi_qup.h
++++ b/platform/msm_shared/include/spi_qup.h
+@@ -84,7 +84,10 @@
+ 
+ struct spi_transfer {
+ 	const unsigned char	*tx_buf;
++	unsigned char       	*rx_buf;
+ 	int	len;
++	unsigned int        speed_hz;
++
+ };
+ 
+ /**
+@@ -99,15 +102,25 @@ struct qup_spi_dev {
+ 	unsigned int qup_base;
+ 	int qup_irq;
+ 	int tx_bytes;
++	int rx_bytes;
+ 	unsigned int bytes_per_word;
+ 	unsigned int bit_shift_en;
+ 	unsigned int unpack_en;
++	unsigned int force_cs_dis;
+ 	struct spi_transfer *xfer;
++	unsigned int max_speed_hz;
++	uint8_t blsp_id;
++	uint8_t qup_id;
++
++
+ };
+ 
+ /* Function Definitions */
+ struct qup_spi_dev *qup_blsp_spi_init(uint8_t blsp_id, uint8_t qup_id);
+ int qup_spi_deinit(struct qup_spi_dev *dev);
+-int spi_qup_transfer(struct qup_spi_dev *dev, const unsigned char * tx_buf, unsigned int data_size);
++//int spi_qup_transfer(struct qup_spi_dev *dev, const unsigned char * tx_buf, unsigned int data_size); changed by me
++static int spi_qup_transfer(struct qup_spi_dev *dev, struct spi_transfer *xfer); // added by me
++int spi_qup_read(struct qup_spi_dev *dev, unsigned char *rx_buf, unsigned int data_size); //added declaration
++
+ 
+ #endif				/* __SPI_QUP__ */
+diff --git a/platform/msm_shared/mdss_spi.c b/platform/msm_shared/mdss_spi.c
+index 4dc466c..be598bb 100644
+--- a/platform/msm_shared/mdss_spi.c
++++ b/platform/msm_shared/mdss_spi.c
+@@ -32,7 +32,11 @@
+ #include <target/display.h>
+ #include <platform/gpio.h>
+ 
++#define SUCCESS              0
++#define FAIL              1
++
+ static struct qup_spi_dev *dev = NULL;
++extern int lcd_flags;
+ 
+ int mdss_spi_write_cmd(const char *buf)
+ {
+@@ -45,9 +49,33 @@ int mdss_spi_write_cmd(const char *buf)
+ 
+ 	dev->bytes_per_word = 1;
+ 	dev->bit_shift_en = 1;
++    dev->force_cs_dis = 1;
+ 
+ 	gpio_set(dc_gpio.pin_id, 0);
+-	ret = spi_qup_transfer(dev, buf, 1);
++	ret = spi_qup_write(dev, buf, 1);
++	gpio_set(dc_gpio.pin_id, 2);
++	if (ret)
++		dprintf(CRITICAL, "Send SPI command to panel failed\n");
++
++	return ret;
++}
++
++int spidev_write_cmd(struct qup_spi_dev *dev, char cmd)
++{
++	int ret = 0;
++	char buf[4] = {0};
++
++	if (!dev) {
++		dprintf(CRITICAL, "SPI has not been initialized\n");
++		return -ENODEV;
++	}
++
++	dev->bytes_per_word = 1;
++	dev->bit_shift_en = 1;
++	buf[0] = cmd;
++
++	gpio_set(dc_gpio.pin_id, 0);
++    ret = spi_qup_write(dev, buf, 1);
+ 	gpio_set(dc_gpio.pin_id, 2);
+ 	if (ret)
+ 		dprintf(CRITICAL, "Send SPI command to panel failed\n");
+@@ -66,15 +94,70 @@ int mdss_spi_write_data(const char *buf, size_t len)
+ 
+ 	dev->bytes_per_word = 1;
+ 	dev->bit_shift_en = 1;
++	dev->force_cs_dis = 1;//added by me
+ 
+ 	gpio_set(dc_gpio.pin_id, 2);
+-	ret = spi_qup_transfer(dev, buf, len);
++	//ret = spi_qup_transfer(dev, buf, len); changed by me
++	ret = spi_qup_write(dev, buf, len);//added by me
++
+ 	if (ret)
+ 		dprintf(CRITICAL, "Send SPI parameters to panel failed\n");
+ 
+ 	return ret;
+ }
+ 
++int spidev_read_cmd(struct qup_spi_dev *dev, unsigned char *buf, unsigned int len)
++{
++	int ret = 0;
++	unsigned int max_speed_hz;
++
++	if (!dev) {
++		dprintf(CRITICAL, "SPI has not been initialized\n");
++		return -ENODEV;
++	}
++
++	dev->bytes_per_word = len;
++	dev->bit_shift_en = 1;
++
++	max_speed_hz = dev->max_speed_hz;
++	clock_config_blsp_spi(SPI_BLSP_ID, SPI_QUP_ID, MAX_READ_SPEED_HZ);
++
++	if (lcd_flags == 0)
++        gpio_set(dc_gpio.pin_id, 0); //9305
++    else if (lcd_flags == 1)
++        gpio_set(dc_gpio.pin_id, 2); //7789
++    else
++        gpio_set(dc_gpio.pin_id, 0); //default
++
++	ret = spi_qup_read(dev, buf, len);
++	gpio_set(dc_gpio.pin_id, 2);
++
++	clock_config_blsp_spi(SPI_BLSP_ID, SPI_QUP_ID, max_speed_hz);
++	if (ret)
++		dprintf(CRITICAL, "Send SPI command to panel failed\n");
++
++	return ret;
++}
++int spi_read_id(unsigned char *rx_buf)
++{
++    int ret = 0;
++    int id;
++#if 0
++    ret = spidev_write_cmd(dev, 0x04);
++	if (ret)
++		dprintf(CRITICAL, "SPI send command to panel failed\n");
++    ret = spidev_read_cmd(dev, rx_buf, 4);
++	if (ret)
++		dprintf(CRITICAL, "SPI read data from panel failed\n");
++#endif
++    ret = spidev_write_cmd(dev, 0xDB);
++    ret = spidev_read_cmd(dev, rx_buf, 1);
++    ret = spidev_write_cmd(dev, 0xDC);
++    ret = spidev_read_cmd(dev, (rx_buf + 1), 1);
++
++    return ret;
++}
++
+ int mdss_spi_write_frame(const char *buf, size_t len)
+ {
+ 	int ret = 0;
+@@ -87,13 +170,82 @@ int mdss_spi_write_frame(const char *buf, size_t len)
+ 	dev->bytes_per_word = 2;
+ 	dev->bit_shift_en = 1;
+ 	dev->unpack_en = 0;
++    dev->force_cs_dis = 1;
+ 
+ 	gpio_set(dc_gpio.pin_id, 2);
+-	ret = spi_qup_transfer(dev, buf, len);
++	//ret = spi_qup_transfer(dev, buf, len); changed by me
++	ret = spi_qup_write(dev, buf, len);//added by me
++
++	return ret;
++}
++int spi_check_panel_id(struct msm_panel_info *pinfo)
++{
++	int i = 0;
++	int len;
++	int ret = SUCCESS;
++	unsigned char *buf;
++
++	if (!pinfo->spi.signature || !pinfo->spi.signature_len)
++		return ret;
++
++	len = pinfo->spi.signature_len;
++	buf = (unsigned char*) malloc(len + 1);
++
++    if (lcd_flags == 0) {
++	    spi_read_id(buf);
++        for (i = 0; i < 2; i++)
++            dprintf(SPEW, "bsp_disp: buf[%d] = %x.\n", i, buf[i]);
++
++        for (i = 1; i < len; i++) {
++            /* left shift a bit to match SPI panel timming */
++            if(pinfo->spi.signature[i] != buf[i-1]){
++                ret = FAIL;
++                break;
++            }
++        }
++    } else {
++        mdss_spi_write_cmd(pinfo->spi.signature_addr);
++        //	spi_read_panel_data(buf, len + 1);
++        spidev_read_cmd(dev, buf, len + 1);
++        for (i = 0; i < len + 1; i++)
++            dprintf(SPEW, "bsp_disp: buf[%d] = %x.\n", i, buf[i]);
++
++        for (i = 0; i < len; i++) {
++            /* left shift a bit to match SPI panel timming */
++            if(pinfo->spi.signature[i] !=
++                (((buf[i] << 1) | (buf[i + 1] >> 7)) & 0xFF)) {
++                ret = FAIL;
++                break;
++            }
++        }
++    }
++
++	free(buf);
++
++	if (lcd_flags == (DISPLAY_MAX_PANEL_DETECTION - 1))
++		return SUCCESS;
+ 
+ 	return ret;
+ }
+ 
++int mdss_spi_init(void)
++{
++	if (!dev) {
++		dev = qup_blsp_spi_init(SPI_BLSP_ID, SPI_QUP_ID);
++		if (!dev) {
++			dprintf(CRITICAL, "Failed initializing SPI\n");
++			return -ENODEV;
++		}
++	}
++
++	gpio_tlmm_config(dc_gpio.pin_id, 0,
++				dc_gpio.pin_direction, dc_gpio.pin_pull,
++				dc_gpio.pin_strength, dc_gpio.pin_state);
++	return SUCCESS;
++
++}
++
++
+ int mdss_spi_panel_init(struct msm_panel_info *pinfo)
+ {
+ 	int cmd_count = 0;
+@@ -138,10 +290,30 @@ int mdss_spi_on(struct msm_panel_info *pinfo, struct fbcon_config *fb)
+ 	int buf_size = 0;
+ 	int ret = 0;
+ 
++#if DISPLAY_TYPE_SPI
++	char *src;
++    short *dst;
++    int pos = 0;
++
++    src = fb->base;
++    dst = fb->base;
++    buf_size =  fb->width * fb->height * (fb->bpp / 8);
++    for (pos = 0; pos < (fb->width * fb->height ) ; pos++) {
++        //*dst =  (*src & 0xf8) >> 3 | (*(src+1) & 0xfc) << 3 | (*(src+2) & 0xf8) << 8;
++        *dst =  ((*(src +2) << 8) & 0xf800) | (((*(src+1)) << 3) & 0x7E0) | (*(src) >> 3);
++        src += 3;
++        dst += 1;
++    }
++
++    ret = mdss_spi_write_frame(fb->base, buf_size);
++    if (ret)
++        dprintf(CRITICAL, "Send SPI frame data to panel failed\n");
++#else
+ 	buf_size =  fb->width * fb->height * (fb->bpp / 8);
+ 	ret = mdss_spi_write_frame(fb->base, buf_size);
+ 	if (ret)
+ 		dprintf(CRITICAL, "Send SPI frame data to panel failed\n");
++#endif
+ 
+ 	return ret;
+ }
+diff --git a/platform/msm_shared/sdhci.c b/platform/msm_shared/sdhci.c
+index c9b00db..5aebcbd 100644
+--- a/platform/msm_shared/sdhci.c
++++ b/platform/msm_shared/sdhci.c
+@@ -875,10 +875,14 @@ uint32_t sdhci_send_command(struct sdhci_host *host, struct mmc_command *cmd)
+ 
+ 	/* Write to transfer mode register */
+ 	REG_WRITE16(host, trans_mode, SDHCI_TRANS_MODE_REG);
++	/*Wait mmc setting transfer mode ok.Add by Endy.zheng,2017.04.21*/
++	udelay(1000);
+ 
+ 	/* Write the command register */
+ 	REG_WRITE16(host, SDHCI_PREP_CMD(cmd->cmd_index, flags), SDHCI_CMD_REG);
+ 
++	/*Wait mmc setting transfer mode ok.Add by Endy.zheng,2017.04.21*/
++	udelay(10000);
+ 	/* Command complete sequence */
+ 	if (sdhci_cmd_complete(host, cmd))
+ 	{
+diff --git a/platform/msm_shared/spi_qup.c b/platform/msm_shared/spi_qup.c
+index c753188..7c67d2b 100755
+--- a/platform/msm_shared/spi_qup.c
++++ b/platform/msm_shared/spi_qup.c
+@@ -272,7 +272,7 @@ static void spi_qup_fifo_write(struct qup_spi_dev *dev, struct spi_transfer *xfe
+ 	}
+ }
+ 
+-int _spi_qup_transfer(struct qup_spi_dev *dev, struct spi_transfer *xfer)
++/*int _spi_qup_transfer(struct qup_spi_dev *dev, struct spi_transfer *xfer)
+ {
+ 	int ret = -EIO;
+ 	int retries = 0xFF;
+@@ -319,14 +319,183 @@ exit:
+ 	qup_set_state(dev, QUP_RESET_STATE);
+ 	dev->xfer = NULL;
+ 	return ret;
++} changed by me */
++
++static void spi_qup_fifo_read(struct qup_spi_dev *dev, struct spi_transfer *xfer)
++{
++	unsigned char *rx_buf = xfer->rx_buf;
++	unsigned int word, state, data;
++	unsigned int idx, shift;
++
++	while (dev->rx_bytes < xfer->len) {
++		/* Wait for core to receive a block of MISO data before attempting
++		* to retrieve it. This prevents looping up and outputting another
++		* MOSI block if the input svc flag is not set yet. In that case,
++		* MISO data is lost.
++		*/
++		state = readl_relaxed(dev->qup_base + QUP_OPERATIONAL);
++		if (!(state & QUP_OP_IN_SERVICE_FLAG))
++			continue;
++
++		/* Input another data block if one is available */
++		state = readl_relaxed(dev->qup_base + QUP_OPERATIONAL);
++		if (state & QUP_OP_IN_SERVICE_FLAG) {
++			state &= ~QUP_OP_IN_SERVICE_FLAG;
++			writel(state, dev->qup_base + QUP_OPERATIONAL);
++
++			while (dev->rx_bytes < xfer->len) {
++				if (!(state & QUP_OP_IN_FIFO_NOT_EMPTY))
++					return;
++
++				word = readl_relaxed(dev->qup_base + QUP_INPUT_FIFO_BASE);
++				for (idx = 0; idx < dev->bytes_per_word; idx++, dev->rx_bytes++) {
++					/*
++					* The data format depends on bytes per SPI word:
++					*  4 bytes: 0x12345678
++					*  2 bytes: 0x00001234
++					*  1 byte : 0x00000012
++					*/
++					shift = BITS_PER_BYTE;
++					shift *= (dev->bytes_per_word - idx - 1);
++					rx_buf[dev->rx_bytes] = word >> shift;
++				}
++			}
++		}
++	}
++}
++
++static int _spi_qup_transfer(struct qup_spi_dev *dev, struct spi_transfer *xfer)
++{
++	int ret = -EIO;
++	int retries = 0xFF;
++	unsigned val;
++	unsigned int register_cnt;
++	unsigned int register_cnt_cur;
++
++	dev->xfer     = xfer;
++	dev->tx_bytes = 0;
++	dev->rx_bytes = 0;
++
++	if (xfer->tx_buf && xfer->len != 0) {
++		register_cnt = dev->qup_base + QUP_MX_OUTPUT_CNT;
++		register_cnt_cur = dev->qup_base + QUP_MX_OUTPUT_CNT_CURRENT;
++	} else if (xfer->rx_buf && xfer->len != 0) {
++		register_cnt = dev->qup_base + QUP_MX_INPUT_CNT;
++		register_cnt_cur = dev->qup_base + QUP_MX_INPUT_CNT_CURRENT;
++	} else {
++		return ret;
++	}
++
++	spi_qup_io_config_block(dev, xfer->len);
++	ret = qup_set_state(dev, QUP_RUN_STATE);
++	if (ret) {
++		dprintf(CRITICAL, "%s: cannot set RUN state\n", __func__);
++		goto exit;
++	}
++
++	while((readl(register_cnt) != readl(register_cnt_cur)) && retries--);
++	if (xfer->tx_buf) {
++		while(readl(register_cnt_cur)) {
++			val = readl(dev->qup_base + QUP_OPERATIONAL);
++			val &= ~QUP_OP_OUT_SERVICE_FLAG;
++			writel(val, dev->qup_base + QUP_OPERATIONAL);
++
++			ret = qup_set_state(dev, QUP_PAUSE_STATE);
++			if (ret) {
++				dprintf(CRITICAL, "%s: cannot set PAUSE state\n", __func__);
++				goto exit;
++			}
++
++			spi_qup_fifo_write(dev, xfer);
++
++			ret = qup_set_state(dev, QUP_RUN_STATE);
++			if (ret) {
++				dprintf(CRITICAL, "%s: cannot set RUN state\n", __func__);
++				goto exit;
++			}
++		}
++	} else if (xfer->rx_buf) {
++		spi_qup_fifo_read(dev, xfer);
++	}
++
++exit:
++	qup_set_state(dev, QUP_RESET_STATE);
++	dev->xfer = NULL;
++	return ret;
++}
++static int spi_qup_transfer(struct qup_spi_dev *dev, struct spi_transfer *xfer)
++{
++	unsigned int cur = 0;
++	unsigned int data_size = 0;
++	void *mTmpbuff = NULL;
++	int ret = -EIO;
++
++	if (!xfer || !dev)
++		return ret;
++
++	mTmpbuff = xfer->rx_buf > 0 ? xfer->rx_buf : xfer->tx_buf;
++	if (!mTmpbuff || !xfer->len)
++		return ret;
++
++	if (xfer->speed_hz != dev->max_speed_hz)
++		clock_config_blsp_spi(dev->blsp_id, dev->qup_id, xfer->speed_hz);
++
++	data_size = xfer->len;
++	while(data_size > MAX_QUP_MX_TRANSFER_COUNT + cur) {
++		xfer->len = MAX_QUP_MX_TRANSFER_COUNT;
++		if (xfer->tx_buf)
++			xfer->tx_buf = mTmpbuff + cur;
++		else if (xfer->rx_buf)
++			xfer->rx_buf = mTmpbuff + cur;
++
++		ret = _spi_qup_transfer(dev, xfer);
++		if (ret)
++			return ret;
++
++		cur += MAX_QUP_MX_TRANSFER_COUNT;
++	}
++
++	xfer->len = data_size - cur;
++	if (xfer->tx_buf)
++		xfer->tx_buf = mTmpbuff + cur;
++	else if (xfer->rx_buf)
++		xfer->rx_buf = mTmpbuff + cur;
++	ret = _spi_qup_transfer(dev, xfer);
++
++	return ret;
+ }
+ 
+ /**
+- * @brief Transfer data_size bytes data from tx_buf via spi
++ * @brief write data_size bytes data from tx_buf via spi
+  * @param dev		SPI config structure initialized from qup_blsp_spi_init
+  * @param tx_buf	output buffer pointer
+  * @param data_size	Should be multiple of max bytes per word
+  */
++int spi_qup_write(struct qup_spi_dev *dev, const unsigned char *tx_buf, unsigned int data_size)
++{
++	int ret = -EIO;
++
++	struct spi_transfer s_xfer = {
++		.tx_buf = tx_buf,
++		.rx_buf = NULL,
++		.len = data_size,
++		.speed_hz = MAX_SPEED_HZ,
++	};
++
++	ret = spi_qup_transfer(dev, &s_xfer);
++	if (ret)
++		dprintf(CRITICAL, "%s: write error!\n", __func__);
++
++	dprintf(SPEW, "dev->tx_bytes:0x%x, s_xfer->len:0x%x\n",
++		dev->tx_bytes, s_xfer.len);
++	return ret;
++}
++/**
++ * @brief Transfer data_size bytes data from tx_buf via spi
++ * @param dev		SPI config structure initialized from qup_blsp_spi_init
++ * @param tx_buf	output buffer pointer
++ * @param data_size	Should be multiple of max bytes per word
++ 
+ int spi_qup_transfer(struct qup_spi_dev *dev, const unsigned char * tx_buf, unsigned int data_size)
+ {
+ 	unsigned int cur = 0;
+@@ -357,6 +526,32 @@ int spi_qup_transfer(struct qup_spi_dev *dev, const unsigned char * tx_buf, unsi
+ exit:
+ 	dprintf(CRITICAL, "%s: transfer error!\n", __func__);
+ 	return ret;
++}*/
++
++/**
++ * @brief read data_size bytes data from rx_buf via spi
++ * @param dev		SPI config structure initialized from qup_blsp_spi_init
++ * @param rx_buf	             input buffer pointer
++ * @param data_size	Should be multiple of max bytes per word
++ */
++int spi_qup_read(struct qup_spi_dev *dev, unsigned char *rx_buf, unsigned int data_size)
++{
++	int ret = -EIO;
++
++	struct spi_transfer s_xfer = {
++		.tx_buf = NULL,
++		.rx_buf = rx_buf,
++		.len = data_size,
++		.speed_hz = MAX_READ_SPEED_HZ,
++	};
++
++	ret = spi_qup_transfer(dev, &s_xfer);
++	if (ret)
++		dprintf(CRITICAL, "%s: read error!\n", __func__);
++
++	dprintf(SPEW, "dev->rx_bytes:0x%x, s_xfer->len:0x%x\n",
++		dev->rx_bytes, s_xfer.len);
++	return ret;
+ }
+ 
+ static enum handler_return qup_spi_interrupt(void *arg)
+@@ -432,7 +627,8 @@ struct qup_spi_dev *qup_blsp_spi_init(uint8_t blsp_id, uint8_t qup_id)
+ 	/* Initialize the GPIO for BLSP spi */
+ 	gpio_config_blsp_spi(blsp_id, qup_id);
+ 
+-	clock_config_blsp_spi(blsp_id, qup_id);
++	//clock_config_blsp_spi(blsp_id, qup_id);
++	clock_config_blsp_spi(blsp_id, qup_id, dev->max_speed_hz);
+ 
+ 	qup_spi_sec_init(dev);
+ 
+diff --git a/target/msm8909/include/target/display.h b/target/msm8909/include/target/display.h
+index 632aa4e..3854579 100644
+--- a/target/msm8909/include/target/display.h
++++ b/target/msm8909/include/target/display.h
+@@ -112,7 +112,8 @@ static const uint32_t panel_physical_ctrl[] = {
+ #define MIPI_VSYNC_BACK_PORCH_LINES  3
+ #define MIPI_VSYNC_FRONT_PORCH_LINES 9
+ 
++#define DISPLAY_MAX_PANEL_DETECTION 4   /* auto select max panel*/
+ #define SPI_BLSP_ID                  1 /* BLSP_ID_1 */
+-#define SPI_QUP_ID                   4 /* QUP_ID_4 */
++#define SPI_QUP_ID                   5 /* QUP_ID_5 */
+ 
+ #endif
+diff --git a/target/msm8909/init.c b/target/msm8909/init.c
+index 4234532..1ce2ea5 100644
+--- a/target/msm8909/init.c
++++ b/target/msm8909/init.c
+@@ -475,6 +475,9 @@ uint8_t target_panel_auto_detect_enabled()
+ 	uint8_t ret = 0;
+ 
+ 	switch(board_hardware_id()) {
++	case HW_PLATFORM_QRD:
++        ret = 1;
++        break;
+ 	default:
+ 		ret = 0;
+ 		break;
+diff --git a/target/msm8909/oem_panel.c b/target/msm8909/oem_panel.c
+index baa1bdb..2133e73 100644
+--- a/target/msm8909/oem_panel.c
++++ b/target/msm8909/oem_panel.c
+@@ -36,6 +36,7 @@
+ #include <target/display.h>
+ #include "include/panel.h"
+ #include "panel_display.h"
++#include <platform/gpio.h>
+ 
+ #include "include/panel_hx8394d_480p_video.h"
+ #include "include/panel_hx8394d_720p_video.h"
+@@ -48,9 +49,13 @@
+ #include "include/panel_hx8379c_hvga_video.h"
+ #include "include/panel_ili9488_hvga_video.h"
+ #include "include/panel_gc9305_qvga_spi_cmd.h"
++#include "include/panel_sanlong_gc9305_qvga_spi_cmd.h"
++#include "include/panel_jinglong_st7789_qvga_spi_cmd.h"
++#include "include/panel_st7789cmi_qvga_spi_cmd.h"
+ 
+-#define DISPLAY_MAX_PANEL_DETECTION 0
++//#define DISPLAY_MAX_PANEL_DETECTION 4
+ #define ILI9806E_FWVGA_VIDEO_PANEL_POST_INIT_DELAY 68
++#define DISPLAY_SPI_PANEL_ID_GPIO 71
+ 
+ enum {
+ 	QRD_SKUA = 0x00,
+@@ -75,6 +80,9 @@ enum {
+ 	HX8379C_FWVGA_VIDEO_PANEL,
+ 	HX8379C_HVGA_VIDEO_PANEL,
+ 	GC9305_QVGA_SPI_CMD_PANEL,
++	SANLONG_GC9305_QVGA_SPI_CMD_PANEL,
++	JINGLONG_ST7789_QVGA_SPI_CMD_PANEL,
++	ST7789CMI_QVGA_SPI_CMD_PANEL,
+ 	UNKNOWN_PANEL
+ };
+ 
+@@ -94,9 +102,13 @@ static struct panel_list supp_panels[] = {
+ 	{"hx8379c_fwvga_video",HX8379C_FWVGA_VIDEO_PANEL},
+ 	{"hx8379c_hvga_video", HX8379C_HVGA_VIDEO_PANEL},
+ 	{"gc9305_qvga_cmd", GC9305_QVGA_SPI_CMD_PANEL},
++	{"sanlong_gc9305_qvga_cmd", SANLONG_GC9305_QVGA_SPI_CMD_PANEL},
++	{"jinglong_st7789_qvga_cmd", JINGLONG_ST7789_QVGA_SPI_CMD_PANEL},
++	{"st7789cmi_qvga_cmd", ST7789CMI_QVGA_SPI_CMD_PANEL},
+ };
+ 
+ static uint32_t panel_id;
++int lcd_flags = 0;
+ 
+ int oem_panel_rotation()
+ {
+@@ -350,6 +362,63 @@ static int init_panel_data(struct panel_struct *panelstruct,
+ 					hx8379c_hvga_video_timings, TIMING_SIZE);
+ 		pinfo->mipi.signature = HX8379C_HVGA_VIDEO_SIGNATURE;
+ 		break;
++	case SANLONG_GC9305_QVGA_SPI_CMD_PANEL:
++		panelstruct->paneldata    = &sanlong_gc9305_qvga_cmd_panel_data;
++		panelstruct->panelres     = &sanlong_gc9305_qvga_cmd_panel_res;
++		panelstruct->color        = &sanlong_gc9305_qvga_cmd_color;
++		panelstruct->panelresetseq
++					= &sanlong_gc9305_qvga_cmd_reset_seq;
++		panelstruct->backlightinfo = &sanlong_gc9305_qvga_cmd_backlight;
++		pinfo->spi.panel_cmds
++					= sanlong_gc9305_qvga_cmd_on_command;
++		pinfo->spi.num_of_panel_cmds
++					= SANLONG_GC9305_QVGA_CMD_ON_COMMAND;
++		pinfo->spi.signature_addr
++					= &sanlong_gc9305_signature_addr;
++		pinfo->spi.signature
++					= sanlong_gc9305_signature;
++		pinfo->spi.signature_len
++					= sanlong_gc9305_signature_len;
++		pan_type = PANEL_TYPE_SPI;
++		break;
++	case JINGLONG_ST7789_QVGA_SPI_CMD_PANEL:
++		panelstruct->paneldata    = &jinglong_st7789_qvga_cmd_panel_data;
++		panelstruct->panelres     = &jinglong_st7789_qvga_cmd_panel_res;
++		panelstruct->color        = &jinglong_st7789_qvga_cmd_color;
++		panelstruct->panelresetseq
++					= &jinglong_st7789_qvga_cmd_reset_seq;
++		panelstruct->backlightinfo = &jinglong_st7789_qvga_cmd_backlight;
++		pinfo->spi.panel_cmds
++					= jinglong_st7789_qvga_cmd_on_command;
++		pinfo->spi.num_of_panel_cmds
++					= JINGLONG_ST7789_QVGA_CMD_ON_COMMAND;
++		pinfo->spi.signature_addr
++					= &jinglong_st7789_signature_addr;
++		pinfo->spi.signature
++					= jinglong_st7789_signature;
++		pinfo->spi.signature_len
++					= jinglong_st7789_signature_len;
++		pan_type = PANEL_TYPE_SPI;
++		break;
++	case ST7789CMI_QVGA_SPI_CMD_PANEL:
++		panelstruct->paneldata    = &st7789cmi_qvga_cmd_panel_data;
++		panelstruct->panelres     = &st7789cmi_qvga_cmd_panel_res;
++		panelstruct->color        = &st7789cmi_qvga_cmd_color;
++		panelstruct->panelresetseq
++					= &st7789cmi_qvga_cmd_reset_seq;
++		panelstruct->backlightinfo = &st7789cmi_qvga_cmd_backlight;
++		pinfo->spi.panel_cmds
++					= st7789cmi_qvga_cmd_on_command;
++		pinfo->spi.num_of_panel_cmds
++					= ST7789CMI_QVGA_CMD_ON_COMMAND;
++		pinfo->spi.signature_addr
++					= &st7789cmi_signature_addr;
++		pinfo->spi.signature
++					= st7789cmi_signature;
++		pinfo->spi.signature_len
++					= st7789cmi_signature_len;
++		pan_type = PANEL_TYPE_SPI;
++		break;
+ 	case UNKNOWN_PANEL:
+ 	default:
+ 		memset(panelstruct, 0, sizeof(struct panel_struct));
+@@ -368,6 +437,15 @@ uint32_t oem_panel_max_auto_detect_panels()
+                         DISPLAY_MAX_PANEL_DETECTION : 0;
+ }
+ 
++uint32_t oem_panel_spi_id_detect_panels()
++{
++    gpio_tlmm_config(DISPLAY_SPI_PANEL_ID_GPIO, 0,
++        GPIO_INPUT, GPIO_NO_PULL,
++        GPIO_8MA, GPIO_ENABLE);
++
++    return gpio_status(DISPLAY_SPI_PANEL_ID_GPIO);
++}
++
+ int oem_panel_select(const char *panel_name, struct panel_struct *panelstruct,
+ 			struct msm_panel_info *pinfo,
+ 			struct mdss_dsi_phy_ctrl *phy_db)
+@@ -401,11 +479,53 @@ int oem_panel_select(const char *panel_name, struct panel_struct *panelstruct,
+ 	case HW_PLATFORM_QRD:
+ 		switch (platform_subtype) {
+ 			case QRD_SKUA:
+-				if (MSM8905 == board_platform_id())
+-					panel_id = GC9305_QVGA_SPI_CMD_PANEL;
+-				else
+-					panel_id = HX8379A_FWVGA_SKUA_VIDEO_PANEL;
++				if (MSM8905 == board_platform_id()) {
++					switch (auto_pan_loop) {
++						case 0:
++                            if (oem_panel_spi_id_detect_panels()) {
++                                dprintf(CRITICAL, "GC9305_QVGA_SPI_CMD_PANEL\n");
++                                panel_id = GC9305_QVGA_SPI_CMD_PANEL;
++                            } else {
++                                dprintf(CRITICAL, "SANLONG_GC9305_QVGA_SPI_CMD_PANEL\n");
++                                panel_id = SANLONG_GC9305_QVGA_SPI_CMD_PANEL;
++                            }
++                            lcd_flags = 0;
++                            break;
++                        case 1:
++                            dprintf(CRITICAL, "Jinglong ST7789_QVGA_SPI_CMD_PANEL\n");
++                            panel_id = JINGLONG_ST7789_QVGA_SPI_CMD_PANEL;
++                            lcd_flags = 1;
++                            break;
++                        default:
++                            dprintf(CRITICAL, "default GC9305_QVGA_SPI_CMD_PANEL\n");
++                            panel_id = GC9305_QVGA_SPI_CMD_PANEL;
++                            lcd_flags = 3;
++                            break;
++                    }
++                    auto_pan_loop++;
++                }
++		else
++		   panel_id = HX8379A_FWVGA_SKUA_VIDEO_PANEL;
++		break;
++#if 0
++			switch (auto_pan_loop) {
++			case 0:
++				panel_id = GC9305_QVGA_SPI_CMD_PANEL;
++                lcd_flags = 0;
++				break;
++			case 1:
++				panel_id = ST7789CMI_QVGA_SPI_CMD_PANEL; //LCD_ID
++                lcd_flags = 1;
+ 				break;
++			default:
++				panel_id = UNKNOWN_PANEL;
++				dprintf(CRITICAL, "Unknown panel\n");
++				return PANEL_TYPE_UNKNOWN;
++            }
++
++			auto_pan_loop++;
++            break;
++#endif
+ 			case HW_PLATFORM_SUBTYPE_QRD_RUGGED:
+ 				panel_id = ILI9488_HVGA_VIDEO_PANEL;
+ 				break;
