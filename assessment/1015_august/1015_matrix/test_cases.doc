@@ -1,0 +1,5 @@
+1.creating a matrix with rows and coloumns mulitples of 3's - pass
+2.appending matrix with 1's - pass
+3.finding sum of matrix - pass
+4.finding sum of both diagnols - pass
+4.finding sum by blocks - fail

@@ -1,0 +1,7 @@
+i\p - abc.txt votary
+1.taking 2 strings at command line - pass
+2.function 1 reading word by word till end of file - pass
+3.function 2 recieving each word from function 1 - pass
+4.function 2 reversing the word found - pass
+5.word actually reversing in file - fail
+
