@@ -1,0 +1,1 @@
+Unable to open log device '/dev/log/kernel': No such file or directory
