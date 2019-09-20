@@ -1,0 +1,12 @@
+These three little callbacks are associated with the PLAY, PAUSE and STOP buttons in the GUI. They simply set the pipeline to the corresponding state. Note that in the STOP state we set the pipeline to READY. We could have brought the pipeline all the way down to the NULL state, but, the transition would then be a little slower, since some resources (like the audio device) would need to be released and re-acquired.
+
+**forward seek ,backward seek ,select video from local folder usiong file open option ,slider and Preview(back button like in tv remote) 
+
+
+
+
+
+
+
+
+you would rather want to build an application that can automatically detect the media type of a stream and automatically generate the best possible pipeline by looking at all available elements in a system. This process is called autoplugging, and GStreamer contains high-quality autopluggers.

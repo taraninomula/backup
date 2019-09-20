@@ -1,0 +1,29 @@
+Basically, GStreamer takes care of media playback while the GUI toolkit handles user interaction. The most interesting parts are those in which both libraries have to interact: Instructing GStreamer to output video to a GTK+ window and forwarding user actions to GStreamer.
+
+In particular, you will learn:
+
+How to tell GStreamer to output video to a particular window (instead of creating its own window).
+
+How to continuously refresh the GUI with information from GStreamer.
+
+How to update the GUI from the multiple threads of GStreamer, an operation forbidden on most GUI toolkits.
+
+A mechanism to subscribe only to the messages you are interested in, instead of being notified of all of them.
+
+Introduction
+We are going to build a media player using the GTK+ toolkit, but the concepts apply to other toolkits like Qt, for example. A minimum knowledge of GTK+ will help understand this tutorial.
+
+The main point is telling GStreamer to output the video to a window of our choice. The specific mechanism depends on the operating system (or rather, on the windowing system), but GStreamer provides a layer of abstraction for the sake of platform independence. This independence comes through the GstVideoOverlay interface, that allows the application to tell a video sink the handler of the window that should receive the rendering.
+
+InformationGObject interfaces
+
+A GObject interface (which GStreamer uses) is a set of functions that an element can implement. If it does, then it is said to support that particular interface. For example, video sinks usually create their own windows to display video, but, if they are also capable of rendering to an external window, they can choose to implement the GstVideoOverlay interface and provide functions to specify this external window. From the application developer point of view, if a certain interface is supported, you can use it and forget about which kind of element is implementing it. Moreover, if you are using playbin, it will automatically expose some of the interfaces supported by its internal elements: You can use your interface functions directly on playbin without knowing who is implementing them!
+
+Another issue is that GUI toolkits usually only allow manipulation of the graphical “widgets” through the main (or application) thread, whereas GStreamer usually spawns multiple threads to take care of different tasks. Calling GTK+ functions from within callbacks will usually fail, because callbacks execute in the calling thread, which does not need to be the main thread. This problem can be solved by posting a message on the GStreamer bus in the callback: The messages will be received by the main thread which will then react accordingly.
+
+Finally, so far we have registered a handle_message function that got called every time a message appeared on the bus, which forced us to parse every message to see if it was of interest to us. In this tutorial a different method is used that registers a callback for each kind of message, so there is less parsing and less code overall.
+
+A media player in GTK+
+Let's write a very simple media player based on playbin, this time, with a GUI!
+
+Copy this code into a text file named basic-tutorial-5.c (or find it in your GStreamer installation).

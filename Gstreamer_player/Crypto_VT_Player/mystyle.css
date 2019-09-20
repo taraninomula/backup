@@ -1,0 +1,134 @@
+GtkWindow {
+    background-color:DarkSeaGreen;
+    border: 2px solid #000000; /* black */
+
+}
+
+GtkButton {
+    background-image: none;
+}
+
+#myGrid {
+    background-color: cyan;
+    border-style: solid;
+    border-color: black;
+    border-width: 1px;
+}
+
+#myChildTop {
+    background-color: white;
+}
+
+#myButton_red{
+    background-color: #00FFFF;
+    border: 2px solid #000000; /* black */
+    color: white;
+    font-family: DejaVu Sans;
+    font-style: normal;
+    font-weight: bold;
+    font-size: 20px;
+    border-radius: 15px;
+}
+#myButton_IndianRed{
+    background-color: IndianRed;
+    border: 2px solid #000000; /* black */
+    color: white;
+    font-family: DejaVu Sans;
+    font-style: normal;
+    font-weight: bold;
+    font-size: 20px;
+    border-radius: 15px;
+}
+#myButton_LightSalmon{
+    background-color:LightSalmon;
+    border: 2px solid #000000; /* black */
+    color: white;
+    font-family: DejaVu Sans;
+    font-style: normal;
+    font-weight: bold;
+    font-size: 20px;
+    border-radius: 15px;
+}
+
+#myButton_black{
+    background-color:black;
+    color: white;
+    font-family: DejaVu Sans;
+    font-style: normal;
+    font-weight: bold;
+    font-size: 20px;
+    border-radius: 15px;
+}
+
+#myButton_DarkMagenta{
+    background-color:DarkMagenta;
+    border: 2px solid #000000; /* black */
+    color: white;
+    font-family: DejaVu Sans;
+    font-style: normal;
+    font-weight: bold;
+    font-size: 20px;
+    border-radius: 15px;
+}
+
+#myButton_DarkSeaGreen{
+    background-color:DarkSeaGreen;
+    border: 2px solid #000000; /* black */
+    color: white;
+    font-family: DejaVu Sans;
+    font-style: normal;
+    font-weight: bold;
+    font-size: 20px;
+    border-radius: 15px;
+}
+
+#myButton_CornflowerBlue{
+    background-color:CornflowerBlue;
+    border: 2px solid #000000; /* black */
+    color: white;
+    font-family: DejaVu Sans;
+    font-style: normal;
+    font-weight: bold;
+    font-size: 20px;
+    border-radius: 15px;
+}
+
+#myButton_yellow{
+    background-color: yellow;
+    border: 2px solid #000000; /* black */
+    color: white;
+    font-family: DejaVu Sans;
+    font-style: normal;
+    font-weight: bold;
+    font-size: 20px;
+    border-radius: 15px;
+}
+
+#myButton_green{
+    background-color: green;
+    border: 2px solid #000000; /* black */
+    color: white;
+    font-family: DejaVu Sans;
+    font-style: normal;
+    font-weight: bold;
+    font-size: 20px;
+    border-radius: 15px;
+}
+
+#myButton_blue{
+    background-color: blue;
+    border: 2px solid #000000; /* black */
+    color: white;
+    font-family: DejaVu Sans;
+    font-style: normal;
+    font-weight: bold;
+    font-size: 20px;
+    border-radius: 15px;
+}
+
+#myButton_red:hover,
+#myButton_yellow:hover,
+#myButton_green:hover,
+#myButton_blue:hover{
+   background-color: black;
+}

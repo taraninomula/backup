@@ -1,0 +1,11 @@
+		In Crypto plugin added palyer:::bug forward seek,backward seek and slider operations not performing 
+
+Error received from element matroskademux1: Could not demultiplex stream.
+Debugging information: matroska-demux.c(4834): gst_matroska_demux_handle_sink_event (): /GstPipeline:video-audio-player/GstDecodeBin:decoderr/GstMatroskaDemux:matroskademux1:
+got eos and didn't receive a complete header object
+
+
+Error received from element file-source: Internal data flow error.
+Debugging information: gstbasesrc.c(2865): gst_base_src_loop (): /GstPipeline:video-audio-player/GstFileSrc:file-source:
+streaming task paused, reason error (-5)
+

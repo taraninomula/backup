@@ -1,0 +1,5 @@
+Register the own plugin into our gstreamer framework:
+
+Add plugin:
+	 ./configure --libdir=/usr/lib/x86_64-linux-gnu
+

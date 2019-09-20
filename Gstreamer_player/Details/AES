@@ -1,0 +1,46 @@
+1.AES is based on a design principle known as a substitution–permutation network, and is efficient in both software and hardware.
+
+
+	The key size used for an AES cipher specifies the number of transformation rounds that convert the input, called the plaintext, into the final output, called the ciphertext. The number of rounds are as follows:
+
+10 rounds for 128-bit keys.
+12 rounds for 192-bit keys.
+14 rounds for 256-bit keys.
+Each round consists of several processing steps, including one that depends on the encryption key itself. A set of reverse rounds are applied to transform ciphertext back into the original plaintext using the same encryption key.
+
+
+	divide data as block(separates the data into a four-by-four column of sixteen bytes (there are eight bits in a byte and 16 x 8 = 128)
+	1.Add round key
+	2.Substitute bytes(from exisited table)
+	3.Shift rows(2nd row is moved one space to the left,3rd row 2space left,....
+	4.Mix columns(each column has a mathematical equation applied to it in order to further diffuse it)
+
+	 make things clearer, the entire AES encryption process goes:
+
+	Key expansion
+
+	Add round key
+
+ 
+
+	Byte substitution
+	
+	Shift rows
+
+	Mix columns
+
+	Add round key          
+
+	x 9, 11 or 13 times, depending on whether the key is 128, 192 or 256-bit
+
+ 
+
+	Byte substitution
+
+	Shift rows
+	
+	Add round key
+
+ 
+
+	Once the data has gone through this complex process, your original “buy me some potato chips please” comes out looking something like “ok23b8a0i3j 293uivnfqf98vs87a”. It seems like a completely random string of characters, but as you can see from these examples, it is actually the result of many different mathematical operations being applied to it again and again.

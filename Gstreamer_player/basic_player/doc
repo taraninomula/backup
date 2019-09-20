@@ -1,0 +1,4 @@
+gst-launch-1.0 filesrc location=~/Pictures/sample.png ! crypto mode=enc ! filesink location=~/Videos/encrypted/sample.png.enc
+
+gst-launch-1.0 filesrc location=~/small.mp4 ! crypto mode=dec  ! queue ! decodebin name=dee  dee. ! queue  ! audioconvert ! audioresample ! alsasink dee. ! queue  ! videoconvert ! Xvimagesink
+

@@ -1,0 +1,51 @@
+Display audio and video metadata in another window.
+	1.nuber of frames per second
+	2.codecs(video/audio)
+	3.duration of content(total and //run time )
+	
+
+
+approach:
+	1.when you click a button it display metadata of current stream.
+	2.automatically display metadata in terminal.
+	3.pop one more gtk window for displaying metadata of current stream.  
+
+
+CMPLITED ABOVE REQUIREMENTS:
+	using gst-discoverer tool src .I added that src to Player application.
+	1-week of time.
+
+
+1.Autoplay.
+2.typefind functionality implimentation.
+3.audio mixer(mix two audios and then render)
+		operation:		
+			if we press button then it add audio2  to audio1 then render (or saved in other file)mixed audio 
+		Reqirements:
+			adder
+			audiofxbad:  audiochannelmix: Simple stereo audio mixer
+
+		Apporach:
+			
+		
+
+
+
+
+
+			
+
+2.
+NEW IDEA:
+face detection on current running video:
+	1.select a pic and then compare with current running video.
+	2.if pic detects prints the  detected times on window.
+
+
+
+
+
+
+Pad Probbing and data manipulation
+
+

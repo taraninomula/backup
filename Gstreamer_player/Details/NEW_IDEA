@@ -1,0 +1,6 @@
+1.
+Face detection on current running video:
+	1.select a picture and then compare with current running video.
+	2.if pic detects prints the  detected times  on window and capure the images.
+
+

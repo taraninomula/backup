@@ -1,0 +1,14 @@
+compiling packages:
+ gcc Player_decodebin.c -o video  `pkg-config --cflags --libs gstreamer-video-1.0 gtk+-3.0 gstreamer-1.0`
+
+ gcc Metadata_decodebin_player.c -o video  `pkg-config --cflags --libs gstreamer-video-1.0 gtk+-3.0 gstreamer-1.0 gstreamer-pbutils-1.0`
+
+content urls:
+https://www.appsloveworld.com/2018/10/5k-video-sample-download.html
+
+
+https://www.freedesktop.org/software/gstreamer-sdk/data/media/sintel_trailer-480p.webm
+
+https://www.freedesktop.org/software/gstreamer-sdk/data/media/sintel_trailer-480p.mkv
+
+https://www.freedesktop.org/software/gstreamer-sdk/data/media/sintel_trailer-480p.ogv

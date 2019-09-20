@@ -1,0 +1,5 @@
+This is an example of how a complex GUI element like a seeker bar (or slider that allows seeking) can be very easily implemented thanks to GStreamer and GTK+ collaborating. If the slider has been dragged to a new position, tell GStreamer to seek to that position with gst_element_seek_simple() (as seen in Basic tutorial 4: Time management). The slider has been setup so its value represents seconds.
+
+It is worth mentioning that some performance (and responsiveness) can be gained by doing some throttling, this is, not responding to every single user request to seek. Since the seek operation is bound to take some time, it is often nicer to wait half a second (for example) after a seek before allowing another one. Otherwise, the application might look unresponsive if the user drags the slider frantically, which would not allow any seek to complete before a new one is queued.
+
+

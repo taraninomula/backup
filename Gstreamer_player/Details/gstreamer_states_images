@@ -1,0 +1,11 @@
+
+
+1.export GST_DEBUG_DUMP_DOT_DIR=/home/kakanhar/gst_state_images/
+
+2.run pipeline.
+
+3.dot -Tpng 0.00.00.192788456-gst-launch.READY_PAUSED.dot > 2.png    //change image format
+
+4.OPEN images
+        eog filename
+

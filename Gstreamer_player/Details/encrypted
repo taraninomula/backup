@@ -1,0 +1,39 @@
+encryption:
+
+GST_PLUGIN_PATH=/usr/local/lib/gstreamer-1.0 gst-launch-1.0 filesrc location=~/Videos/Panasonic_HDC_TM_700_P_50i.avi ! crypto mode=enc ! filesink location=~/Videos/encrypted/Panasonic_HDC_TM_700_P_50i.avi
+
+
+Decryption:
+
+ GST_PLUGIN_PATH=/usr/local/lib/gstreamer-1.0 gst-launch-1.0 filesrc location=~/Videos/encrypted/Panasonic_HDC_TM_700_P_50i.avi ! crypto mode=dec ! queue ! decodebin name=dee dee. ! queue  ! audioconvert ! audioresample ! alsasink dee. ! queue  ! videoconvert ! xvimagesink
+
+with password enc:
+ GST_PLUGIN_PATH=/usr/local/lib/gstreamer-1.0 gst-launch-1.0 filesrc location=~/Videos/Panasonic_HDC_TM_700_P_50i.avi ! crypto mode=enc pass=\xb8\xf7 ! filesink location=~/Videos/encrypted/Panasonic_HDC_TM_700_P_50i.avi.cipher.pass.enc
+
+with password dec:
+
+ GST_PLUGIN_PATH=/usr/local/lib/gstreamer-1.0 gst-launch-1.0 filesrc location=~/Videos/encrypted/Panasonic_HDC_TM_700_P_50i.avi.cipher.pass.enc ! crypto mode=dec pass=\xb8\xf7 ! queue ! decodebin name=dee dee. ! queue  ! audioconvert ! audioresample ! alsasink dee. ! queue  ! videoconvert ! xvimagesink
+
+
+
+with aes-128 key cipher:enc
+ GST_PLUGIN_PATH=/usr/local/lib/gstreamer-1.0 gst-launch-1.0 filesrc location=~/Videos/Panasonic_HDC_TM_700_P_50i.avi ! crypto mode=enc cipher=aes-128-cbc ! filesink location=~/Videos/encrypted/Panasonic_HDC_TM_700_P_50i.avi.cipher.aes.enc
+
+
+with aes-128 key cipher:dec
+
+GST_PLUGIN_PATH=/usr/local/lib/gstreamer-1.0 gst-launch-1.0 filesrc location=~/Videos/encrypted/Panasonic_HDC_TM_700_P_50i.avi.cipher.aes.enc ! crypto mode=dec cipher=aes-128-cbc ! queue ! decodebin name=dee dee. ! queue  ! audioconvert ! audioresample ! alsasink dee. ! queue  ! videoconvert ! xvimagesink
+
+
+
+
+
+
+
+
+
+Register the own plugin into our gstreamer framework:
+
+
+
+
